@@ -90,9 +90,27 @@ class DskParser
         for ($s = 0; $s < $spt; $s++) {
             $base     = 0x18 + $s * 8;
             $sN       = ord($hdr[$base + 3]);
-            $realSize = ord($hdr[$base + 6]) | (ord($hdr[$base + 7]) << 8);
+            $declSize = 128 << $sN;
+
+            // Extended DSK : realSize sur 2 octets little-endian
+            // Certains dumpers stockent la valeur en multiple de 256 (high byte seul)
+            $lo       = ord($hdr[$base + 6]);
+            $hi       = ord($hdr[$base + 7]);
+            $realSize = $lo | ($hi << 8);
+
+            // Si realSize est 0 → taille déclarée par N
             if ($realSize === 0) {
-                $realSize = 128 << $sN;
+                $realSize = $declSize;
+            }
+            // Détection dumpers qui stockent uniquement le high byte (ex: 0x20 0x00 pour 8192)
+            // → $lo serait un multiple de 256 déguisé, $hi = 0, résultat incohérent
+            // Si realSize < declSize ET hi == 0 ET lo * 256 == declSize → c'est un high-byte seul
+            elseif ($hi === 0 && $lo !== 0 && ($lo * 256) === $declSize) {
+                $realSize = $declSize;
+            }
+            // Sécurité finale : realSize ne peut pas dépasser 2× la taille déclarée
+            elseif ($realSize > $declSize * 2) {
+                $realSize = $declSize;
             }
 
             $sectorInfos[] = [
@@ -134,8 +152,12 @@ class DskParser
                 $sumData += ord($data[$b]);
             }
 
-            $isWeak   = (bool)(($si['sr1'] & 0x20) || ($si['sr2'] & 0x20));
-            $isErased = (bool)($si['sr2'] & 0x40);
+            // WEAK  : realSize > taille déclarée (données multi-lecture pour simuler l'aléatoire)
+            // ERASED: bit 6 de SR2 (deleted data address mark)
+            // FDC error : bit 5 de SR1 ou SR2 (CRC error) — stocké séparément
+            $isWeak    = ($si['realSize'] > $declSize);
+            $isErased  = (bool)($si['sr2'] & 0x40);
+            $isFdcErr  = (bool)(($si['sr1'] & 0x20) || ($si['sr2'] & 0x20));
             $isUsed   = $this->isSectorUsed($data, $filler);
 
             $sectors[] = [
@@ -152,6 +174,7 @@ class DskParser
                 'sr2'        => $si['sr2'],
                 'isWeak'     => $isWeak,
                 'isErased'   => $isErased,
+                'isFdcErr'   => $isFdcErr,
                 'isUsed'     => $isUsed,
                 'isIncomplete' => ($si['realSize'] !== $declSize),
                 'data'       => $data,

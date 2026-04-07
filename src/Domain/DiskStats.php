@@ -10,8 +10,17 @@ class DiskStats
      */
     public function compute(array $raw): array
     {
-        $sectors = $raw['rawSectors'];
-        $tracks  = $raw['tracks'];
+        $sectors   = $raw['rawSectors'];
+        $tracks    = $raw['tracks'];
+
+        // Nombre de secteurs sur la track 0 (critère de détection Hexagon Type 2 vs 3)
+        $track0Spt = 0;
+        foreach ($raw['tracks'] as $t) {
+            if ($t['num'] === 0) { $track0Spt = $t['spt']; break; }
+        }
+
+        // Tracks réellement formatées (avec au moins 1 secteur) vs tracks déclarées dans le header
+        $tracksFormatted = count($raw['tracks']);
 
         $totalSectors      = count($sectors);
         $usedSectors       = 0;
@@ -19,6 +28,7 @@ class DiskStats
         $erasedSectors     = 0;
         $incompleteSectors = 0;
         $totalWeakSectors  = 0;
+        $fdcErrors         = 0;
         $sizeCounts        = array_fill(0, 10, 0); // index 0-8 = taille N, index 9 = N>8
         $totalDeclaredBytes = 0;
         $totalRealBytes     = 0;
@@ -28,8 +38,9 @@ class DiskStats
             if ($s['isUsed'])       $usedSectors++;
             if ($s['isWeak'])     { $weakSectors++; $totalWeakSectors++; }
             if ($s['isErased'])     $erasedSectors++;
-            if ($s['isWeak'] && $s['isErased']) $totalWeakSectors++; // comptés double
+            if ($s['isWeak'] && $s['isErased']) $totalWeakSectors++;
             if ($s['isIncomplete']) $incompleteSectors++;
+            if ($s['isFdcErr'] ?? false) $fdcErrors++;
 
             $n = $s['N'] <= 8 ? $s['N'] : 9;
             $sizeCounts[$n]++;
@@ -40,7 +51,9 @@ class DiskStats
         }
 
         // Taille totale déclarée des pistes (table d'offset du header)
-        $tracksDeclaredSize = array_sum(array_filter($raw['trackSizes']));
+        // CPC-Power soustrait les 256 octets de header de chaque track (données seules)
+        $rawTrackSizes      = array_filter($raw['trackSizes']);
+        $tracksDeclaredSize = array_sum($rawTrackSizes) - (count($rawTrackSizes) * 256);
 
         // Stats MAP précalculées (évite du PHP dans le template)
         $mapStats = $this->computeMapStats($sectors);
@@ -69,11 +82,14 @@ class DiskStats
             'erasedSectors'      => $erasedSectors,
             'incompleteSectors'  => $incompleteSectors,
             'totalWeakSectors'   => $totalWeakSectors,
+            'fdcErrors'          => $fdcErrors,
             'sizeCounts'         => $sizeCounts,
             'totalDeclaredBytes' => $totalDeclaredBytes,
             'totalRealBytes'     => $totalRealBytes,
             'totalSumData'       => $totalSumData,
             'tracksDeclaredSize' => $tracksDeclaredSize,
+            'track0Spt'          => $track0Spt,
+            'tracksFormatted'    => $tracksFormatted,
 
             // Stats pour l'onglet MAP
             'mapStats'           => $mapStats,

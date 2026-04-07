@@ -7,11 +7,18 @@
                 <tr><td>Creator</td><td><?= htmlspecialchars($d['creator']) ?></td></tr>
                 <tr><td>Format</td><td><?= htmlspecialchars($d['format']) ?></td></tr>
                 <tr><td>Sides</td><td><?= $d['nbSides'] ?></td></tr>
-                <tr><td>Tracks formatted</td><td><?= $d['nbTracks'] ?></td></tr>
-                <tr><td>Tracks per side</td><td><?= intdiv($d['nbTracks'], max(1, $d['nbSides'])) ?></td></tr>
+                <tr><td>Tracks formatted</td><td><?= $d['tracksFormatted'] ?></td></tr>
+                <tr><td>Tracks per side</td><td><?= $d['nbTracks'] ?></td></tr>
                 <?php for ($side = 1; $side <= $d['nbSides']; $side++): ?>
                 <tr><td>Side <?= $side ?> : Tracks size declared</td><td><?= number_format($d['tracksDeclaredSize']) ?> octets (<?= FormatHelper::bytes($d['tracksDeclaredSize']) ?>)</td></tr>
                 <tr><td>Side <?= $side ?> : Tracks size real</td><td><?= number_format($d['totalRealBytes']) ?> octets (<?= FormatHelper::bytes($d['totalRealBytes']) ?>)</td></tr>
+                <?php $diff = $d['tracksDeclaredSize'] - $d['totalRealBytes']; ?>
+                <?php if ($diff !== 0): ?>
+                <tr>
+                    <td>Side <?= $side ?> : size difference</td>
+                    <td style="color:var(--orange);font-weight:600"><?= number_format(abs($diff)) ?> octets</td>
+                </tr>
+                <?php endif; ?>
                 <tr><td>Side <?= $side ?> : All Sectors size declared</td><td><?= number_format($d['totalDeclaredBytes']) ?> octets (<?= FormatHelper::bytes($d['totalDeclaredBytes']) ?>)</td></tr>
                 <tr><td>Side <?= $side ?> : Sum DATA</td><td><?= number_format($d['totalSumData']) ?></td></tr>
                 <?php endfor; ?>
@@ -66,7 +73,10 @@
                 </tr>
                 <tr><td>Sector with GAPS information</td><td style="text-align:right">0</td></tr>
                 <tr><td>Sector with GAP2 information</td><td style="text-align:right">0</td></tr>
-                <tr><td>FDC Errors</td><td style="text-align:right"><?= $d['weakSectors'] ?></td></tr>
+                <tr>
+                    <td>FDC Errors</td>
+                    <td style="text-align:right;<?= ($d['fdcErrors'] ?? 0) > 0 ? 'color:var(--orange);font-weight:700' : '' ?>"><?= $d['fdcErrors'] ?? 0 ?></td>
+                </tr>
             </table>
         </div>
     </div>
@@ -99,7 +109,14 @@
         'weak-erased'        => ['fill' => '#FF00FF', 'text' => '#ffffff'],
         'weak-erased-empty'  => ['fill' => '#BA00BA', 'text' => '#ffffff'],
         'incomplete'         => ['fill' => '#e8ffe8', 'text' => '#003300'],
+        // Secteurs de protection N=6 (Hexagon)
+        'protection-n6'      => ['fill' => '#FFB300', 'text' => '#000000'],
+        'protection-n6-empty'=> ['fill' => '#7a5500', 'text' => '#FFB300'],
     ];
+
+    // Protections détectées par ProtectionDetector (via index.php)
+    $protections = $d['protections'] ?? [];
+    $hasN6       = ($d['sizeCounts'][6] ?? 0) > 0;
 
     /**
      * Calcule le path SVG d'un secteur en arc (anneau de disque).
@@ -158,8 +175,14 @@
 
                 foreach ($sectors as $si => $s):
                     $sectorIdx = $globalSector++;
-                    $cssClass = FormatHelper::sectorCssClass($s);
-                    $col      = $colors[$cssClass] ?? $colors['normal-empty'];
+
+                    // Secteur N=6 → couleur protection Hexagon (prioritaire)
+                    if ($s['N'] === 6) {
+                        $cssClass = $s['isUsed'] ? 'protection-n6' : 'protection-n6-empty';
+                    } else {
+                        $cssClass = FormatHelper::sectorCssClass($s);
+                    }
+                    $col = $colors[$cssClass] ?? $colors['normal-empty'];
                     $aStart   = $offset + $si * $aDeg;
                     $aEnd     = $aStart + $aDeg;
                     $path     = diskSectorPath($cx, $cy, $r1, $r2, $aStart, $aEnd);
@@ -207,6 +230,19 @@
             <circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="<?= $rMin - 2 ?>" fill="#0d0d1a" stroke="#2a2a4a" stroke-width="1.5"/>
             <circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="6" fill="#333" stroke="#555" stroke-width="1"/>
 
+            <?php if (!empty($protections)): ?>
+            <!-- Badge protection dans le trou central -->
+            <circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="<?= $rMin - 4 ?>"
+                    fill="none" stroke="<?= $protections[0]['color'] ?>"
+                    stroke-width="2" stroke-dasharray="4,3" opacity="0.8"/>
+            <text x="<?= $cx ?>" y="<?= $cy - 6 ?>"
+                  text-anchor="middle" font-size="10" font-weight="bold"
+                  fill="<?= $protections[0]['color'] ?>">🛡</text>
+            <text x="<?= $cx ?>" y="<?= $cy + 6 ?>"
+                  text-anchor="middle" font-size="5.5" font-weight="bold"
+                  fill="<?= $protections[0]['color'] ?>">PROT</text>
+            <?php endif; ?>
+
             <!-- Légende tracks : étiquettes T00 / T41 -->
             <text x="<?= $cx ?>" y="<?= $cy + $rMin - 8 ?>" text-anchor="middle" font-size="9" fill="#4fc3f7">T00</text>
             <text x="<?= $cx ?>" y="<?= $cy - $rMax - 3 ?>" text-anchor="middle" font-size="9" fill="#4fc3f7">T<?= str_pad(array_key_last($trackMap), 2, '0', STR_PAD_LEFT) ?></text>
@@ -222,6 +258,18 @@
             <div class="dl-item"><span class="dl-swatch" style="background:#FF0000"></span>Weak</div>
             <div class="dl-item"><span class="dl-swatch" style="background:#FF00FF"></span>Weak+Erased</div>
             <div class="dl-item"><span class="dl-swatch" style="background:#e8ffe8;border:2px dashed #0a0"></span>Incomplete</div>
+            <?php if ($hasN6): ?>
+            <div class="dl-item"><span class="dl-swatch" style="background:#FFB300"></span>Protection N=6</div>
+            <?php endif; ?>
+
+            <?php if (!empty($protections)): ?>
+            <div class="dl-sep"></div>
+            <?php foreach ($protections as $p): ?>
+            <div class="dl-protection" style="border-color:<?= $p['color'] ?>;color:<?= $p['color'] ?>">
+                <?= $p['icon'] ?> <?= htmlspecialchars($p['label']) ?>
+            </div>
+            <?php endforeach; ?>
+            <?php endif; ?>
         </div>
         </div>
     </div>

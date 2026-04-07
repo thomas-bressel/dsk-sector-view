@@ -10,6 +10,7 @@ require_once __DIR__ . '/src/Domain/DskParser.php';
 require_once __DIR__ . '/src/Domain/CpmDirectoryParser.php';
 require_once __DIR__ . '/src/Domain/DiskStats.php';
 require_once __DIR__ . '/src/Helper/FormatHelper.php';
+require_once __DIR__ . '/src/Service/ProtectionDetector.php';
 
 // ── Services transverses ──────────────────────────────────────────────────────
 (new FileCleanupService())->run();
@@ -49,6 +50,7 @@ if ($dskFile && file_exists($dskFile)) {
         $raw['files']     = (new CpmDirectoryParser())->parse($raw['rawSectors']);
         $diskData         = (new DiskStats())->compute($raw);
         $diskData['originalName'] = $originalName;
+        $diskData['protections']  = (new ProtectionDetector())->detect($diskData);
     } catch (\RuntimeException $e) {
         $uploadError = 'Erreur de lecture : ' . $e->getMessage();
         $diskData    = null;

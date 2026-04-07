@@ -23,13 +23,19 @@ class CpmDirectoryParser
 
     private function extractTrack0Data(array $rawSectors): string
     {
-        $data = '';
+        // Collecter les secteurs de la track 0, indexés par leur ID logique (R)
+        $track0 = [];
         foreach ($rawSectors as $s) {
             if ($s['track'] === 0) {
-                $data .= $s['data'];
+                $track0[$s['R']] = $s['data'];
             }
         }
-        return $data;
+
+        // Trier par ID logique (ordre croissant) pour reconstituer
+        // l'ordre CP/M correct (#C1, #C2... ou #01, #02...)
+        ksort($track0);
+
+        return implode('', $track0);
     }
 
     private function readExtents(string $dirData): array
@@ -41,6 +47,7 @@ class CpmDirectoryParser
             $entry = substr($dirData, $i * 32, 32);
             $user  = ord($entry[0]);
 
+            // 0xE5 = entrée supprimée/vide, user > 15 = pas CP/M standard
             if ($user === 0xE5 || $user > 15) continue;
 
             $name = '';
@@ -55,6 +62,22 @@ class CpmDirectoryParser
             }
             $ext = rtrim($ext);
 
+            // Valider que le nom contient des caractères ASCII imprimables
+            // Sinon on ne lit pas un répertoire CP/M — on ignore
+            if (!$this->isValidCpmName($name)) continue;
+
+            // Blocs alloués (octets 16–31), chaque octet = numéro de bloc
+            // On ignore les blocs > 200 (valeurs aberrantes = entrée corrompue/code)
+            $blocks = [];
+            for ($b = 16; $b <= 31; $b++) {
+                $blk = ord($entry[$b]);
+                if ($blk !== 0 && $blk <= 200) $blocks[] = $blk;
+            }
+
+            // Si l'extent 0 contient des blocs aberrants, ignorer cette entrée
+            $extentNum = ord($entry[12]) | (ord($entry[14]) << 5);
+            if ($extentNum === 0 && empty($blocks) && ord($entry[15]) > 0) continue;
+
             $extents[] = [
                 'user'     => $user,
                 'name'     => $name,
@@ -63,10 +86,32 @@ class CpmDirectoryParser
                 'hidden'   => (bool)(ord($entry[10]) & 0x80),
                 'extent'   => ord($entry[12]) | (ord($entry[14]) << 5),
                 'rc'       => ord($entry[15]),
+                'blocks'   => $blocks,
             ];
         }
 
         return $extents;
+    }
+
+    private function isValidCpmName(string $name): bool
+    {
+        $name = rtrim($name);
+        if ($name === '') return false;
+
+        // Un nom CP/M valide : lettres, chiffres, et caractères spéciaux courants
+        // Pas de caractères de contrôle, pas de bytes > 0x7E
+        for ($i = 0; $i < strlen($name); $i++) {
+            $c = ord($name[$i]);
+            // Espace autorisé (padding), mais caractères de contrôle interdits
+            if ($c < 0x20 || $c > 0x7E) return false;
+        }
+
+        // Au moins un caractère non-espace
+        if (trim($name) === '') return false;
+
+        // Vérifier que le nom ne contient que des caractères CP/M valides
+        // (alphanum + ! # $ % & ' ( ) - @ ^ _ ` { } ~)
+        return (bool) preg_match('/^[A-Za-z0-9!#\$%&\'()\-@^_`{}~ ]+$/', $name);
     }
 
     private function mergeExtents(array $extents): array
@@ -78,37 +123,42 @@ class CpmDirectoryParser
 
             if (!isset($seen[$key])) {
                 $seen[$key] = [
-                    'user'     => $e['user'],
-                    'name'     => $e['name'],
-                    'ext'      => $e['ext'],
-                    'readonly' => $e['readonly'],
-                    'hidden'   => $e['hidden'],
-                    'rc'       => 0,
-                    'track'    => 0,
-                    'sector'   => '#C1',
+                    'user'      => $e['user'],
+                    'name'      => $e['name'],
+                    'ext'       => $e['ext'],
+                    'readonly'  => $e['readonly'],
+                    'hidden'    => $e['hidden'],
+                    'rc'        => 0,
+                    'allBlocks' => [],
                 ];
             }
 
-            $seen[$key]['rc'] += $e['rc'];
-
-            // Les attributs de l'extent 0 font foi
-            if ($e['extent'] === 0) {
-                $seen[$key]['readonly'] = $e['readonly'];
-                $seen[$key]['hidden']   = $e['hidden'];
+            // Seul l'extent 0 avec RC > 0 donne les infos fiables
+            // On ne le traite qu'une seule fois (première occurrence)
+            if ($e['extent'] === 0 && $e['rc'] > 0 && empty($seen[$key]['allBlocks'])) {
+                $seen[$key]['readonly']  = $e['readonly'];
+                $seen[$key]['hidden']    = $e['hidden'];
+                $seen[$key]['allBlocks'] = $e['blocks'];
+                $seen[$key]['rc']        = $e['rc'];
+            } elseif ($e['extent'] > 0) {
+                $seen[$key]['rc'] += $e['rc'];
             }
         }
 
         $files = [];
         foreach ($seen as $e) {
+            $allBlocks  = $e['allBlocks'] ?? [];
+            $firstBlock = $allBlocks[0] ?? null;
+
             $files[] = [
-                'user'     => $e['user'],
-                'name'     => $e['name'],
-                'ext'      => $e['ext'],
-                'readonly' => $e['readonly'],
-                'hidden'   => $e['hidden'],
-                'sizeKo'   => (int)ceil($e['rc'] * 128 / 1024),
-                'track'    => $e['track'],
-                'sector'   => $e['sector'],
+                'user'       => $e['user'],
+                'name'       => $e['name'],
+                'ext'        => $e['ext'],
+                'readonly'   => $e['readonly'],
+                'hidden'     => $e['hidden'],
+                'sizeKo'     => max(1, (int)floor($e['rc'] * 128 / 1024)),
+                'firstBlock' => $firstBlock,
+                'allBlocks'  => $e['allBlocks'] ?? [],
             ];
         }
 
