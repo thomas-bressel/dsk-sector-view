@@ -1,17 +1,66 @@
 <?php
 
+/**
+ * DskParser
+ *
+ * Reads an Extended CPC DSK binary file and returns a structured array
+ * of tracks and sectors ready for consumption by DiskStats and DskWriter.
+ *
+ * Supported formats:
+ *   - Extended CPC DSK  (signature "EXTENDED CPC DSK File")
+ *   - Standard MV-CPCEMU DSK (signature "MV - CPCEMU")
+ *
+ * Returned structure:
+ * <code>
+ * [
+ *   'path'       => string,           // absolute path of the source file
+ *   'fileSize'   => int,              // file size in bytes
+ *   'header'     => array,            // parsed disk header
+ *   'trackSizes' => int[],            // raw track size table (bytes, multiples of 256)
+ *   'tracks'     => array[],          // one entry per formatted track
+ *   'rawSectors' => array[],          // flat list of all sectors across all tracks
+ * ]
+ * </code>
+ *
+ * Each sector entry contains:
+ * <code>
+ * [
+ *   'track'       => int,   // physical track number (C field)
+ *   'side'        => int,   // side number (H field)
+ *   'C'           => int,   // cylinder (track) address
+ *   'H'           => int,   // head (side) address
+ *   'R'           => int,   // sector ID (logical record number)
+ *   'N'           => int,   // sector size code (128 << N = bytes)
+ *   'declSize'    => int,   // declared size in bytes (128 << N)
+ *   'realSize'    => int,   // actual data size stored in the DSK
+ *   'sumData'     => int,   // byte sum of sector data (used for comparison)
+ *   'sr1'         => int,   // FDC Status Register 1 byte
+ *   'sr2'         => int,   // FDC Status Register 2 byte
+ *   'isWeak'      => bool,  // true if realSize > declSize (multi-read weak sector)
+ *   'isErased'    => bool,  // true if SR2 bit 6 is set (deleted data address mark)
+ *   'isFdcErr'    => bool,  // true if SR1 or SR2 bit 5 is set (CRC error)
+ *   'isUsed'      => bool,  // true if sector data differs from the track filler byte
+ *   'isIncomplete'=> bool,  // true if realSize != declSize
+ *   'data'        => string, // raw binary sector data
+ * ]
+ * </code>
+ *
+ * @package DskToolPhp\Domain
+ */
 class DskParser
 {
     /**
-     * Parse un fichier Extended DSK et retourne les données brutes structurées.
+     * Parses an Extended DSK file and returns structured raw data.
      *
-     * @return array{header: array, tracks: array, rawSectors: array}
+     * @param  string $path Absolute path to the .dsk file
+     * @return array        Structured disk data (see class docblock)
+     * @throws \RuntimeException If the file cannot be opened
      */
     public function parse(string $path): array
     {
         $h = fopen($path, 'rb');
         if (!$h) {
-            throw new \RuntimeException("Impossible d'ouvrir le fichier : $path");
+            throw new \RuntimeException("Cannot open file: $path");
         }
 
         $header     = $this->parseHeader($h);
@@ -36,8 +85,8 @@ class DskParser
             $track = $this->parseTrackHeader($trackHdr);
             $track['sectors'] = $this->parseSectors($h, $pos, $track['spt'], $track['sectorInfos'], $track['filler']);
 
-            $tracks[]     = $track;
-            $rawSectors   = array_merge($rawSectors, $track['sectors']);
+            $tracks[]   = $track;
+            $rawSectors = array_merge($rawSectors, $track['sectors']);
 
             $pos += $tSize;
         }
@@ -54,10 +103,16 @@ class DskParser
         ];
     }
 
-    // ----------------------------------------------------------------
-    // Privé
-    // ----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
 
+    /**
+     * Reads and parses the 256-byte disk header.
+     *
+     * @param  resource $h Open file handle positioned at offset 0
+     * @return array       Parsed header fields
+     */
     private function parseHeader($h): array
     {
         $raw     = fread($h, 256);
@@ -73,6 +128,15 @@ class DskParser
         ];
     }
 
+    /**
+     * Reads the track size table from the disk header.
+     * Each byte at offset 0x34+i encodes the track block size as byte × 256.
+     *
+     * @param  string $raw      Raw 256-byte disk header
+     * @param  int    $nbTracks Number of tracks per side
+     * @param  int    $nbSides  Number of sides
+     * @return int[]            Track sizes in bytes, indexed by slot (track × sides + side)
+     */
     private function readTrackSizeTable(string $raw, int $nbTracks, int $nbSides): array
     {
         $sizes = [];
@@ -82,6 +146,17 @@ class DskParser
         return $sizes;
     }
 
+    /**
+     * Parses the 256-byte track header block.
+     *
+     * Handles the realSize field edge cases:
+     *   - Zero value → falls back to declared size (128 << N)
+     *   - Single high-byte encoding (some dumpers) → normalised to declSize
+     *   - Values exceeding 2× declSize → clamped to declSize
+     *
+     * @param  string $hdr 256-byte track header block
+     * @return array       Track metadata including sectorInfos array
+     */
     private function parseTrackHeader(string $hdr): array
     {
         $spt         = ord($hdr[0x15]);
@@ -92,24 +167,19 @@ class DskParser
             $sN       = ord($hdr[$base + 3]);
             $declSize = 128 << $sN;
 
-            // Extended DSK : realSize sur 2 octets little-endian
-            // Certains dumpers stockent la valeur en multiple de 256 (high byte seul)
+            // Extended DSK: realSize is a 16-bit little-endian value
             $lo       = ord($hdr[$base + 6]);
             $hi       = ord($hdr[$base + 7]);
             $realSize = $lo | ($hi << 8);
 
-            // Si realSize est 0 → taille déclarée par N
             if ($realSize === 0) {
+                // No realSize stored → use declared size
                 $realSize = $declSize;
-            }
-            // Détection dumpers qui stockent uniquement le high byte (ex: 0x20 0x00 pour 8192)
-            // → $lo serait un multiple de 256 déguisé, $hi = 0, résultat incohérent
-            // Si realSize < declSize ET hi == 0 ET lo * 256 == declSize → c'est un high-byte seul
-            elseif ($hi === 0 && $lo !== 0 && ($lo * 256) === $declSize) {
+            } elseif ($hi === 0 && $lo !== 0 && ($lo * 256) === $declSize) {
+                // Some dumpers store only the high byte (e.g. 0x20 for 8192 bytes)
                 $realSize = $declSize;
-            }
-            // Sécurité finale : realSize ne peut pas dépasser 2× la taille déclarée
-            elseif ($realSize > $declSize * 2) {
+            } elseif ($realSize > $declSize * 2) {
+                // Safety clamp: realSize cannot exceed twice the declared size
                 $realSize = $declSize;
             }
 
@@ -135,6 +205,20 @@ class DskParser
         ];
     }
 
+    /**
+     * Reads and decodes all sector data blocks for a given track.
+     *
+     * Weak sectors are identified by realSize > declSize (the DSK stores
+     * multiple reads of the sector consecutively to simulate random data).
+     * Erased sectors are identified by SR2 bit 6 (deleted data address mark).
+     *
+     * @param  resource $h           Open file handle
+     * @param  int      $trackPos    Byte offset of the track block in the file
+     * @param  int      $spt         Sectors per track
+     * @param  array    $sectorInfos Sector metadata from the track header
+     * @param  int      $filler      Filler byte used to detect empty sectors
+     * @return array[]               Array of decoded sector entries
+     */
     private function parseSectors($h, int $trackPos, int $spt, array $sectorInfos, int $filler): array
     {
         $dataPos = $trackPos + 256;
@@ -152,38 +236,43 @@ class DskParser
                 $sumData += ord($data[$b]);
             }
 
-            // WEAK  : realSize > taille déclarée (données multi-lecture pour simuler l'aléatoire)
-            // ERASED: bit 6 de SR2 (deleted data address mark)
-            // FDC error : bit 5 de SR1 ou SR2 (CRC error) — stocké séparément
-            $isWeak    = ($si['realSize'] > $declSize);
-            $isErased  = (bool)($si['sr2'] & 0x40);
-            $isFdcErr  = (bool)(($si['sr1'] & 0x20) || ($si['sr2'] & 0x20));
+            $isWeak   = ($si['realSize'] > $declSize);
+            $isErased = (bool)($si['sr2'] & 0x40);
+            $isFdcErr = (bool)(($si['sr1'] & 0x20) || ($si['sr2'] & 0x20));
             $isUsed   = $this->isSectorUsed($data, $filler);
 
             $sectors[] = [
-                'track'      => $si['C'],
-                'side'       => $si['H'],
-                'C'          => $si['C'],
-                'H'          => $si['H'],
-                'R'          => $si['R'],
-                'N'          => $si['N'],
-                'declSize'   => $declSize,
-                'realSize'   => $si['realSize'],
-                'sumData'    => $sumData,
-                'sr1'        => $si['sr1'],
-                'sr2'        => $si['sr2'],
-                'isWeak'     => $isWeak,
-                'isErased'   => $isErased,
-                'isFdcErr'   => $isFdcErr,
-                'isUsed'     => $isUsed,
-                'isIncomplete' => ($si['realSize'] !== $declSize),
-                'data'       => $data,
+                'track'       => $si['C'],
+                'side'        => $si['H'],
+                'C'           => $si['C'],
+                'H'           => $si['H'],
+                'R'           => $si['R'],
+                'N'           => $si['N'],
+                'declSize'    => $declSize,
+                'realSize'    => $si['realSize'],
+                'sumData'     => $sumData,
+                'sr1'         => $si['sr1'],
+                'sr2'         => $si['sr2'],
+                'isWeak'      => $isWeak,
+                'isErased'    => $isErased,
+                'isFdcErr'    => $isFdcErr,
+                'isUsed'      => $isUsed,
+                'isIncomplete'=> ($si['realSize'] !== $declSize),
+                'data'        => $data,
             ];
         }
 
         return $sectors;
     }
 
+    /**
+     * Determines whether a sector contains meaningful data.
+     * A sector is considered empty if every byte equals the track filler byte.
+     *
+     * @param  string $data   Raw sector bytes
+     * @param  int    $filler Track filler byte value
+     * @return bool           True if the sector contains data other than filler
+     */
     private function isSectorUsed(string $data, int $filler): bool
     {
         $len = strlen($data);

@@ -1,25 +1,36 @@
-# DSK Sector Viewer
+# DSK Tool PHP
 
-> Amstrad CPC disk image analyser for the Extended DSK format — track, sector, CP/M catalogue and copy-protection visualisation.
+> Amstrad CPC disk image analyser for the Extended DSK format — track, sector, CP/M catalogue, copy-protection visualisation and repacking.
+
+**Version 1.0.0 — 2026-04-10**
 
 ---
 
 ### Overview
 
-**DSK Sector Viewer** is a pure PHP web application for analysing Amstrad CPC disk image files in **Extended CPC DSK** format. It provides a modern tabbed interface to explore all information contained in a disk image: physical structure, CP/M file catalogue, visual sector map, and copy protection detection.
+**DSK Tool PHP** is a pure PHP web application for analysing Amstrad CPC disk image files in **Extended CPC DSK** format. It provides a modern tabbed interface to explore all information contained in a disk image: physical structure, CP/M file catalogue, visual sector map, copy protection detection, and repacking.
+
+The interface is available in **French**, **English**, **German** and **Spanish**.
+
+---
 
 ### Features
 
 - **Secure upload**: CSRF-protected form with extension validation, size limit (max 5 MB), and binary signature check
-- **DISK tab**: general disk specifications (format, creator, track/side count, declared/real sizes, Sum DATA) and sector size breakdown
+- **Automatic repacking**: a repacked `.dsk` file is generated and made available for download after each analysis
+- **DISK tab**: circular visual sector map + general disk specifications (format, creator, track/side count, declared/real sizes, Sum DATA) and sector size breakdown
 - **FILES tab**: CP/M catalogue — file list with name, extension, user number, attributes (read-only, hidden) and size
 - **MAP tab**: visual sector map per track with colour coding (normal, erased, weak, incomplete) and statistics bar
 - **SECTORS tab**: exhaustive table of every sector (ID, declared/real size, Sum DATA, FDC SR1/SR2 flags, Erased/Weak/Used status)
 - **TRACKS tab**: per-track summary (sector count, total size, GAP and FILLER bytes, Sum DATA)
-- **INFOS tab**: full technical documentation on protections (Weak Sectors, Erased Sectors, Size 6, GAPS), the DSK format, FDC flags, and CP/M FAT
+- **INFOS tab**: full technical documentation on protections (Weak Sectors, Erased Sectors, Size 6, GAPS), the DSK format, FDC flags, and the CP/M FAT
+- **DATA tab**: sector-by-sector hexadecimal dump
+- **Multilingual interface**: FR / EN / DE / ES, language choice persisted in session
 - **Automatic cleanup** of uploaded files after 1 hour
 
-### Sector colour coding (MAP tab)
+---
+
+### Sector colour coding (MAP and DISK tabs)
 
 | Colour | Meaning |
 |---|---|
@@ -31,67 +42,89 @@
 | Dark red `#A00000` | Weak sector — empty |
 | Magenta `#FF00FF` | Weak + Erased — used |
 | Dark magenta `#BA00BA` | Weak + Erased — empty |
+| Orange `#FFB300` | Size-6 protection (N=6) — used |
 | White + dashed green border | Incomplete sector (realSize ≠ declSize) |
+
+---
 
 ### Project structure
 
 ```
-sector-view-v2/
+dsk-tool-php/
 ├── index.php                        Single entry point (bootstrap + dispatch)
 ├── config/
-│   └── app.php                      Configuration constants
+│   └── app.php                      Configuration constants (version, paths)
+├── lang/
+│   ├── fr.php                       French translations
+│   ├── en.php                       English translations
+│   ├── de.php                       German translations
+│   └── es.php                       Spanish translations
 ├── src/
 │   ├── Domain/
 │   │   ├── DskParser.php            Binary parsing of the .dsk file
+│   │   ├── DskWriter.php            Writing / repacking of the .dsk file
 │   │   ├── CpmDirectoryParser.php   CP/M directory parsing
 │   │   └── DiskStats.php            Aggregated metrics computation
 │   ├── Service/
 │   │   ├── CsrfService.php          CSRF token management
 │   │   ├── FileCleanupService.php   Expired upload cleanup
-│   │   └── UploadService.php        File validation and storage
+│   │   ├── UploadService.php        File validation and storage
+│   │   ├── DskRepackager.php        Repacking orchestration
+│   │   └── ProtectionDetector.php   Copy-protection detection
 │   └── Helper/
 │       └── FormatHelper.php         Display utility functions
 ├── templates/
-│   ├── layout.php                   Global HTML skeleton
+│   ├── layout.php                   Global HTML skeleton (header, flags, footer)
 │   ├── upload.php                   Upload form view
 │   ├── disk_banner.php              Disk info banner
 │   ├── partials/
 │   │   └── error_msg.php            Reusable error message component
 │   └── tabs/
-│       ├── tab_disk.php             DISK tab
+│       ├── tab_disk.php             DISK tab (visual map + specifications)
 │       ├── tab_files.php            FILES tab
 │       ├── tab_map.php              MAP tab
 │       ├── tab_sectors.php          SECTORS tab
 │       ├── tab_tracks.php           TRACKS tab
-│       └── tab_infos.php            INFOS tab
+│       ├── tab_infos.php            INFOS tab
+│       └── tab_data.php             DATA tab (hex dump)
 ├── public/
 │   └── assets/
 │       ├── style.css                CSS styles
-│       └── app.js                   JavaScript (tabs, drag-and-drop)
+│       ├── app.js                   JavaScript (tabs, drag-and-drop)
+│       └── img/
+│           ├── logo-dsk-tool-php.webp       Main logo
+│           └── logo-dsk-tool-php-mini.webp  Miniature logo (favicon, banner)
 └── files/                           Temporary upload storage
 ```
+
+---
 
 ### Architecture
 
 The application follows a **strict separation of concerns** without any framework:
 
-- **Domain**: pure business logic (binary parsing, statistics). No dependency on upper layers.
-- **Service**: orchestration of cross-cutting operations (upload, security, cleanup).
+- **Domain**: pure business logic (binary parsing, writing, statistics). No dependency on upper layers.
+- **Service**: orchestration of cross-cutting operations (upload, security, cleanup, repacking, protection detection).
 - **Helper**: pure display functions reusable across templates.
 - **Templates**: presentation only. No business logic — only conditional rendering and helper calls.
+- **`lang/`**: translation arrays returned by `require`, loaded according to the active language stored in session.
 - **`index.php`**: minimal entry point that orchestrates layers without mixing them.
+
+---
 
 ### Requirements
 
-- PHP 7.4 or higher
+- PHP 8.0 or higher
 - `fileinfo` extension enabled
 - Write permission on the `files/` directory
 - Web server (Apache, Nginx, or PHP built-in server)
 
+---
+
 ### Installation
 
 ```bash
-# Copy the sector-view-v2/ folder to your web root
+# Copy the dsk-tool-php/ folder to your web root
 # Ensure the upload directory is writable
 chmod 755 files/
 
@@ -101,11 +134,15 @@ php -S localhost:8080 -t .
 
 Then open `http://localhost:8080` in your browser.
 
+---
+
 ### Supported DSK formats
 
 - ✅ **Extended CPC DSK** (signature: `EXTENDED CPC DSK File`)
 - ✅ **Standard MV-CPCEMU DSK** (signature: `MV - CPCEMU`)
 - ❌ Other DSK variants not supported
+
+---
 
 ### Docker deployment
 
@@ -127,3 +164,9 @@ docker compose up --build -d
 Uploaded files are persisted in a named Docker volume (`dsk_uploads`) — they survive container restarts and rebuilds.
 
 ---
+
+### Changelog
+
+| Version | Date | Notes |
+|---|---|---|
+| 1.0.0 | 2026-04-10 | First public release — FR/EN/DE/ES multilingual interface, visual disk map, repacking, copy-protection detection |

@@ -18,9 +18,11 @@
  *  - Secteurs de taille N=6/7/8
  *  - Flags FDC SR1/SR2
  *
- * Usage typique :
+ * Usage:
  *   $repackager = new DskRepackager(new DskParser(), new DskWriter());
  *   $repackager->repack('/path/to/source.dsk', '/path/to/output.dsk');
+ *
+ * @package DskToolPhp\Service
  */
 class DskRepackager
 {

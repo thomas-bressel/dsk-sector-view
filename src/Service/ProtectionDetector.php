@@ -8,7 +8,9 @@
  *   - label  : nom affiché
  *   - icon   : emoji/caractère
  *   - color  : couleur hex pour l'UI
- *   - desc   : description courte
+ *   - desc   : short description
+ *
+ * @package DskToolPhp\Service
  */
 class ProtectionDetector
 {

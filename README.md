@@ -1,6 +1,6 @@
-# DSK Sector Viewer
+# DSK Tool PHP
 
-Amstrad CPC · Extended DSK Format Analyser
+Amstrad CPC · Extended DSK Format Analyser — v1.0.0
 
 ---
 

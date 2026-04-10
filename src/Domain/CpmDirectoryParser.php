@@ -1,12 +1,34 @@
 <?php
 
+/**
+ * CpmDirectoryParser
+ *
+ * Parses the CP/M directory (FAT) stored in the sectors of track 0 and
+ * returns a list of files present on the disk.
+ *
+ * CP/M directory structure overview:
+ *   - Each directory entry is 32 bytes (an "extent").
+ *   - Up to 64 entries fit in 4 sectors of 512 bytes each.
+ *   - Byte 0          : user number (0–15; 0xE5 = deleted/free entry)
+ *   - Bytes 1–8       : filename, padded with spaces (bit 7 may be set for attributes)
+ *   - Bytes 9–11      : extension, padded with spaces (bit 7 = read-only / hidden / archive)
+ *   - Byte 12         : extent number (low 5 bits)
+ *   - Byte 13         : reserved
+ *   - Byte 14         : extent number (high bits, shifted by 5)
+ *   - Byte 15         : RC — record count (number of 128-byte records in this extent)
+ *   - Bytes 16–31     : allocation block numbers
+ *
+ * Multiple extents with the same user/name/ext are merged into a single file entry.
+ *
+ * @package DskToolPhp\Domain
+ */
 class CpmDirectoryParser
 {
     /**
-     * Parse le répertoire CP/M depuis les secteurs de la piste 0.
+     * Parses the CP/M directory from the raw sectors of track 0.
      *
-     * @param  array $rawSectors  Tous les secteurs bruts du disque
-     * @return array              Liste de fichiers CP/M trouvés
+     * @param  array $rawSectors All raw sectors from the disk (flat list)
+     * @return array             List of CP/M file entries; empty if no valid directory found
      */
     public function parse(array $rawSectors): array
     {
@@ -17,13 +39,18 @@ class CpmDirectoryParser
         return $this->mergeExtents($extents);
     }
 
-    // ----------------------------------------------------------------
-    // Privé
-    // ----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
 
+    /**
+     * Concatenates the data of all track-0 sectors in logical order (by sector ID R).
+     *
+     * @param  array  $rawSectors Full flat sector list
+     * @return string             Concatenated track-0 data (the raw directory buffer)
+     */
     private function extractTrack0Data(array $rawSectors): string
     {
-        // Collecter les secteurs de la track 0, indexés par leur ID logique (R)
         $track0 = [];
         foreach ($rawSectors as $s) {
             if ($s['track'] === 0) {
@@ -31,13 +58,20 @@ class CpmDirectoryParser
             }
         }
 
-        // Trier par ID logique (ordre croissant) pour reconstituer
-        // l'ordre CP/M correct (#C1, #C2... ou #01, #02...)
+        // Sort by logical ID to reconstruct CP/M order (#C1, #C2… or #01, #02…)
         ksort($track0);
 
         return implode('', $track0);
     }
 
+    /**
+     * Reads all valid 32-byte CP/M directory extents from the directory buffer.
+     * Skips deleted entries (user = 0xE5) and non-standard user numbers (> 15).
+     * Also skips entries with non-printable ASCII characters in the filename.
+     *
+     * @param  string $dirData Raw directory buffer
+     * @return array[]         List of raw extent arrays
+     */
     private function readExtents(string $dirData): array
     {
         $extents = [];
@@ -47,7 +81,7 @@ class CpmDirectoryParser
             $entry = substr($dirData, $i * 32, 32);
             $user  = ord($entry[0]);
 
-            // 0xE5 = entrée supprimée/vide, user > 15 = pas CP/M standard
+            // 0xE5 = deleted/free slot; user > 15 = not standard CP/M
             if ($user === 0xE5 || $user > 15) continue;
 
             $name = '';
@@ -62,19 +96,16 @@ class CpmDirectoryParser
             }
             $ext = rtrim($ext);
 
-            // Valider que le nom contient des caractères ASCII imprimables
-            // Sinon on ne lit pas un répertoire CP/M — on ignore
+            // Reject entries with non-printable characters (not a CP/M directory)
             if (!$this->isValidCpmName($name)) continue;
 
-            // Blocs alloués (octets 16–31), chaque octet = numéro de bloc
-            // On ignore les blocs > 200 (valeurs aberrantes = entrée corrompue/code)
+            // Allocation blocks (bytes 16–31); ignore block numbers > 200 (corrupt)
             $blocks = [];
             for ($b = 16; $b <= 31; $b++) {
                 $blk = ord($entry[$b]);
                 if ($blk !== 0 && $blk <= 200) $blocks[] = $blk;
             }
 
-            // Si l'extent 0 contient des blocs aberrants, ignorer cette entrée
             $extentNum = ord($entry[12]) | (ord($entry[14]) << 5);
             if ($extentNum === 0 && empty($blocks) && ord($entry[15]) > 0) continue;
 
@@ -84,7 +115,7 @@ class CpmDirectoryParser
                 'ext'      => $ext,
                 'readonly' => (bool)(ord($entry[9])  & 0x80),
                 'hidden'   => (bool)(ord($entry[10]) & 0x80),
-                'extent'   => ord($entry[12]) | (ord($entry[14]) << 5),
+                'extent'   => $extentNum,
                 'rc'       => ord($entry[15]),
                 'blocks'   => $blocks,
             ];
@@ -93,27 +124,49 @@ class CpmDirectoryParser
         return $extents;
     }
 
+    /**
+     * Validates that a filename contains only printable CP/M-compatible ASCII characters.
+     * Accepted characters: alphanumeric and ! # $ % & ' ( ) - @ ^ _ ` { } ~ space.
+     *
+     * @param  string $name Filename string (attributes bit already masked off)
+     * @return bool         True if the name is a valid CP/M filename
+     */
     private function isValidCpmName(string $name): bool
     {
         $name = rtrim($name);
         if ($name === '') return false;
 
-        // Un nom CP/M valide : lettres, chiffres, et caractères spéciaux courants
-        // Pas de caractères de contrôle, pas de bytes > 0x7E
         for ($i = 0; $i < strlen($name); $i++) {
             $c = ord($name[$i]);
-            // Espace autorisé (padding), mais caractères de contrôle interdits
             if ($c < 0x20 || $c > 0x7E) return false;
         }
 
-        // Au moins un caractère non-espace
         if (trim($name) === '') return false;
 
-        // Vérifier que le nom ne contient que des caractères CP/M valides
-        // (alphanum + ! # $ % & ' ( ) - @ ^ _ ` { } ~)
         return (bool) preg_match('/^[A-Za-z0-9!#\$%&\'()\-@^_`{}~ ]+$/', $name);
     }
 
+    /**
+     * Merges multiple extents belonging to the same file into a single file entry.
+     * Only extent 0 with RC > 0 is used to determine the file size.
+     *
+     * Returned file entry structure:
+     * <code>
+     * [
+     *   'user'       => int,     // CP/M user number (0–15)
+     *   'name'       => string,  // filename without extension
+     *   'ext'        => string,  // extension
+     *   'readonly'   => bool,    // read-only attribute (bit 7 of ext byte 0)
+     *   'hidden'     => bool,    // hidden attribute (bit 7 of ext byte 1)
+     *   'sizeKo'     => int,     // approximate size in KB (RC × 128 / 1024)
+     *   'firstBlock' => int|null,// first allocation block number, or null
+     *   'allBlocks'  => int[],   // all allocation block numbers from extent 0
+     * ]
+     * </code>
+     *
+     * @param  array[] $extents Raw extents from readExtents()
+     * @return array[]          Merged file entries
+     */
     private function mergeExtents(array $extents): array
     {
         $seen = [];
@@ -133,8 +186,6 @@ class CpmDirectoryParser
                 ];
             }
 
-            // Seul l'extent 0 avec RC > 0 donne les infos fiables
-            // On ne le traite qu'une seule fois (première occurrence)
             if ($e['extent'] === 0 && $e['rc'] > 0 && empty($seen[$key]['allBlocks'])) {
                 $seen[$key]['readonly']  = $e['readonly'];
                 $seen[$key]['hidden']    = $e['hidden'];

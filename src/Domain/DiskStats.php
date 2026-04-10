@@ -1,35 +1,52 @@
 <?php
 
+/**
+ * DiskStats
+ *
+ * Computes all aggregated metrics from the raw data produced by DskParser
+ * and returns a single flat array consumed by the view templates.
+ *
+ * Computed fields include:
+ *   - Disk identity  : format, creator, track/side counts
+ *   - Sector counts  : total, used, weak, erased, incomplete, FDC errors
+ *   - Size breakdown : one count per sector size code N (0–8, plus ">8")
+ *   - Byte totals    : declared bytes, real bytes, sum-data
+ *   - Track sizes    : declared track size table vs real data
+ *   - Map stats      : pre-computed values for the MAP tab statistics bar
+ *   - Track data     : per-track summary for the TRACKS tab
+ *
+ * @package DskToolPhp\Domain
+ */
 class DiskStats
 {
     /**
-     * Calcule toutes les métriques agrégées à partir des données brutes du parser.
+     * Computes all disk metrics from raw parsed data.
      *
-     * @param  array $raw  Résultat de DskParser::parse()
-     * @return array       Tableau complet prêt pour les vues
+     * @param  array $raw Result of DskParser::parse(), enriched with 'files' from CpmDirectoryParser
+     * @return array      Flat array of all computed metrics, ready for the view layer
      */
     public function compute(array $raw): array
     {
-        $sectors   = $raw['rawSectors'];
-        $tracks    = $raw['tracks'];
+        $sectors = $raw['rawSectors'];
+        $tracks  = $raw['tracks'];
 
-        // Nombre de secteurs sur la track 0 (critère de détection Hexagon Type 2 vs 3)
+        // Sectors per track on track 0 (used to distinguish Hexagon Type 2 vs Type 3)
         $track0Spt = 0;
         foreach ($raw['tracks'] as $t) {
             if ($t['num'] === 0) { $track0Spt = $t['spt']; break; }
         }
 
-        // Tracks réellement formatées (avec au moins 1 secteur) vs tracks déclarées dans le header
+        // Number of actually formatted tracks (with at least one sector)
         $tracksFormatted = count($raw['tracks']);
 
-        $totalSectors      = count($sectors);
-        $usedSectors       = 0;
-        $weakSectors       = 0;
-        $erasedSectors     = 0;
-        $incompleteSectors = 0;
-        $totalWeakSectors  = 0;
-        $fdcErrors         = 0;
-        $sizeCounts        = array_fill(0, 10, 0); // index 0-8 = taille N, index 9 = N>8
+        $totalSectors       = count($sectors);
+        $usedSectors        = 0;
+        $weakSectors        = 0;
+        $erasedSectors      = 0;
+        $incompleteSectors  = 0;
+        $totalWeakSectors   = 0;
+        $fdcErrors          = 0;
+        $sizeCounts         = array_fill(0, 10, 0); // indices 0–8 = size N; index 9 = N > 8
         $totalDeclaredBytes = 0;
         $totalRealBytes     = 0;
         $totalSumData       = 0;
@@ -50,19 +67,13 @@ class DiskStats
             $totalSumData       += $s['sumData'];
         }
 
-        // Taille totale déclarée des pistes (table d'offset du header)
-        // CPC-Power soustrait les 256 octets de header de chaque track (données seules)
+        // Declared track data size = sum of raw track sizes minus 256-byte header per track
+        // (aligns with CPC-Power convention: data bytes only, not the track header block)
         $rawTrackSizes      = array_filter($raw['trackSizes']);
         $tracksDeclaredSize = array_sum($rawTrackSizes) - (count($rawTrackSizes) * 256);
 
-        // Stats MAP précalculées (évite du PHP dans le template)
-        $mapStats = $this->computeMapStats($sectors);
-
-        // Stats par piste (taille totale, secteurs)
-        $tracksData = $this->computeTracksData($tracks);
-
         return [
-            // Identité du disque
+            // Disk identity
             'path'               => $raw['path'],
             'fileSize'           => $raw['fileSize'],
             'format'             => $raw['header']['format'],
@@ -70,12 +81,12 @@ class DiskStats
             'nbTracks'           => $raw['header']['nbTracks'],
             'nbSides'            => $raw['header']['nbSides'],
 
-            // Données brutes pour les onglets
-            'tracks'             => $tracksData,
+            // Raw data for tabs
+            'tracks'             => $this->computeTracksData($tracks),
             'sectors'            => $sectors,
             'files'              => $raw['files'] ?? [],
 
-            // Stats globales
+            // Global sector counts
             'totalSectors'       => $totalSectors,
             'usedSectors'        => $usedSectors,
             'weakSectors'        => $weakSectors,
@@ -84,29 +95,39 @@ class DiskStats
             'totalWeakSectors'   => $totalWeakSectors,
             'fdcErrors'          => $fdcErrors,
             'sizeCounts'         => $sizeCounts,
+
+            // Byte totals
             'totalDeclaredBytes' => $totalDeclaredBytes,
             'totalRealBytes'     => $totalRealBytes,
             'totalSumData'       => $totalSumData,
             'tracksDeclaredSize' => $tracksDeclaredSize,
+
+            // Misc
             'track0Spt'          => $track0Spt,
             'tracksFormatted'    => $tracksFormatted,
 
-            // Stats pour l'onglet MAP
-            'mapStats'           => $mapStats,
+            // Pre-computed stats for the MAP tab
+            'mapStats'           => $this->computeMapStats($sectors),
         ];
     }
 
-    // ----------------------------------------------------------------
-    // Privé
-    // ----------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
 
+    /**
+     * Pre-computes the statistics displayed in the MAP tab statistics bar.
+     *
+     * @param  array[] $sectors Flat sector list
+     * @return array            Associative array of map statistics
+     */
     private function computeMapStats(array $sectors): array
     {
-        $sizeCounts  = array_fill(0, 10, 0);
-        $erased      = 0;
-        $weak        = 0;
-        $weakTotal   = 0;
-        $incomplete  = 0;
+        $sizeCounts = array_fill(0, 10, 0);
+        $erased     = 0;
+        $weak       = 0;
+        $weakTotal  = 0;
+        $incomplete = 0;
 
         foreach ($sectors as $s) {
             $n = $s['N'] <= 8 ? $s['N'] : 9;
@@ -128,6 +149,12 @@ class DiskStats
         ];
     }
 
+    /**
+     * Builds the per-track summary array consumed by the TRACKS tab.
+     *
+     * @param  array[] $tracks Track array from DskParser
+     * @return array[]         Per-track summary entries
+     */
     private function computeTracksData(array $tracks): array
     {
         $result = [];

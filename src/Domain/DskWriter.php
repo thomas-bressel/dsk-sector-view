@@ -24,7 +24,9 @@
  *  Offset 0x31 : nbSides     1 octet
  *  Offset 0x32 : unused      2 octets  (0x00 en Standard, ignoré en Extended)
  *  Offset 0x34 : track size table  (1 octet × nbTracks × nbSides) × 256
- *  Offset 0xFF : fin du header disque (256 octets total)
+ *  Offset 0xFF : end of disk header (256 bytes total)
+ *
+ * @package DskToolPhp\Domain
  *
  *  Pour chaque piste :
  *    Offset +0x00 : "Track-Info\r\n"  10 octets
