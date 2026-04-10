@@ -1,7 +1,6 @@
 <div id="tab-disk" class="tab-panel active">
 
     <?php
-    // ── Regrouper les secteurs par track ──────────────────────────────────────
     $trackMap = [];
     foreach ($d['sectors'] as $s) {
         $trackMap[$s['track']][] = $s;
@@ -58,9 +57,9 @@
     }
     ?>
 
-    <!-- ── Disk Visual Map (en premier) ──────────────────────────────────── -->
+    <!-- ── Disk Visual Map ────────────────────────────────────────────────── -->
     <div class="disk-visual-card">
-        <div class="disk-visual-title">💿 Disk Visual Map</div>
+        <div class="disk-visual-title"><?= $t['disk_visual_title'] ?></div>
         <div class="disk-visual-wrap">
         <svg viewBox="0 0 <?= $svgW ?> <?= $svgH ?>" xmlns="http://www.w3.org/2000/svg" class="disk-svg">
             <circle cx="<?= $cx ?>" cy="<?= $cy ?>" r="<?= $rMax + 10 ?>" fill="#1a1a2e" stroke="#2a2a4a" stroke-width="2"/>
@@ -128,15 +127,15 @@
             <text x="<?= $cx ?>" y="<?= $cy - $rMax - 3 ?>" text-anchor="middle" font-size="9" fill="#4fc3f7">T<?= str_pad(array_key_last($trackMap), 2, '0', STR_PAD_LEFT) ?></text>
         </svg>
         <div class="disk-legend">
-            <div class="dl-item"><span class="dl-swatch" style="background:#FFFFFF;border:1px solid #555"></span>Used</div>
-            <div class="dl-item"><span class="dl-swatch" style="background:#3a3a5a;border:1px solid #555"></span>Empty</div>
-            <div class="dl-item"><span class="dl-swatch" style="background:#84CFEF"></span>Erased used</div>
-            <div class="dl-item"><span class="dl-swatch" style="background:#0073DF"></span>Erased empty</div>
-            <div class="dl-item"><span class="dl-swatch" style="background:#FF0000"></span>Weak</div>
-            <div class="dl-item"><span class="dl-swatch" style="background:#FF00FF"></span>Weak+Erased</div>
-            <div class="dl-item"><span class="dl-swatch" style="background:#e8ffe8;border:2px dashed #0a0"></span>Incomplete</div>
+            <div class="dl-item"><span class="dl-swatch" style="background:#FFFFFF;border:1px solid #555"></span><?= $t['disk_legend_used'] ?></div>
+            <div class="dl-item"><span class="dl-swatch" style="background:#3a3a5a;border:1px solid #555"></span><?= $t['disk_legend_empty'] ?></div>
+            <div class="dl-item"><span class="dl-swatch" style="background:#84CFEF"></span><?= $t['disk_legend_erased_used'] ?></div>
+            <div class="dl-item"><span class="dl-swatch" style="background:#0073DF"></span><?= $t['disk_legend_erased_empty'] ?></div>
+            <div class="dl-item"><span class="dl-swatch" style="background:#FF0000"></span><?= $t['disk_legend_weak'] ?></div>
+            <div class="dl-item"><span class="dl-swatch" style="background:#FF00FF"></span><?= $t['disk_legend_weak_erased'] ?></div>
+            <div class="dl-item"><span class="dl-swatch" style="background:#e8ffe8;border:2px dashed #0a0"></span><?= $t['disk_legend_incomplete'] ?></div>
             <?php if ($hasN6): ?>
-            <div class="dl-item"><span class="dl-swatch" style="background:#FFB300"></span>Protection N=6</div>
+            <div class="dl-item"><span class="dl-swatch" style="background:#FFB300"></span><?= $t['disk_legend_prot_n6'] ?></div>
             <?php endif; ?>
             <?php if (!empty($protections)): ?>
             <div class="dl-sep"></div>
@@ -150,160 +149,82 @@
         </div>
     </div>
 
-    <!-- ── Spec + Side 1 (en dessous) ────────────────────────────────────── -->
+    <!-- ── Spec + Side 1 ─────────────────────────────────────────────────── -->
     <div class="spec-grid">
         <div class="spec-card">
-            <span class="card-title">📋 Spécification</span>
+            <span class="card-title"><?= $t['disk_spec_title'] ?></span>
             <table>
-                <tr><td>Dump size</td><td><?= number_format($d['fileSize']) ?> octets (<?= FormatHelper::bytes($d['fileSize']) ?>)</td></tr>
-                <tr><td>Creator</td><td><?= htmlspecialchars($d['creator']) ?></td></tr>
-                <tr><td>Format</td><td><?= htmlspecialchars($d['format']) ?></td></tr>
-                <tr><td>Sides</td><td><?= $d['nbSides'] ?></td></tr>
-                <tr><td>Tracks formatted</td><td><?= $d['tracksFormatted'] ?></td></tr>
-                <tr><td>Tracks per side</td><td><?= $d['nbTracks'] ?></td></tr>
+                <tr><td><?= $t['disk_spec_dump_size'] ?></td><td><?= number_format($d['fileSize']) ?> (<?= FormatHelper::bytes($d['fileSize']) ?>)</td></tr>
+                <tr><td><?= $t['disk_spec_creator'] ?></td><td><?= htmlspecialchars($d['creator']) ?></td></tr>
+                <tr><td><?= $t['disk_spec_format'] ?></td><td><?= htmlspecialchars($d['format']) ?></td></tr>
+                <tr><td><?= $t['disk_spec_sides'] ?></td><td><?= $d['nbSides'] ?></td></tr>
+                <tr><td><?= $t['disk_spec_tracks_fmt'] ?></td><td><?= $d['tracksFormatted'] ?></td></tr>
+                <tr><td><?= $t['disk_spec_tracks_side'] ?></td><td><?= $d['nbTracks'] ?></td></tr>
                 <?php for ($side = 1; $side <= $d['nbSides']; $side++): ?>
-                <tr><td>Side <?= $side ?> : Tracks size declared</td><td><?= number_format($d['tracksDeclaredSize']) ?> octets (<?= FormatHelper::bytes($d['tracksDeclaredSize']) ?>)</td></tr>
-                <tr><td>Side <?= $side ?> : Tracks size real</td><td><?= number_format($d['totalRealBytes']) ?> octets (<?= FormatHelper::bytes($d['totalRealBytes']) ?>)</td></tr>
+                <tr><td>Side <?= $side ?><?= $t['disk_spec_track_size_decl'] ?></td><td><?= number_format($d['tracksDeclaredSize']) ?> (<?= FormatHelper::bytes($d['tracksDeclaredSize']) ?>)</td></tr>
+                <tr><td>Side <?= $side ?><?= $t['disk_spec_track_size_real'] ?></td><td><?= number_format($d['totalRealBytes']) ?> (<?= FormatHelper::bytes($d['totalRealBytes']) ?>)</td></tr>
                 <?php $diff = $d['tracksDeclaredSize'] - $d['totalRealBytes']; ?>
                 <?php if ($diff !== 0): ?>
                 <tr>
-                    <td>Side <?= $side ?> : size difference</td>
-                    <td style="color:var(--orange);font-weight:600"><?= number_format(abs($diff)) ?> octets</td>
+                    <td>Side <?= $side ?><?= $t['disk_spec_track_size_diff'] ?></td>
+                    <td style="color:var(--orange);font-weight:600"><?= number_format(abs($diff)) ?></td>
                 </tr>
                 <?php endif; ?>
-                <tr><td>Side <?= $side ?> : All Sectors size declared</td><td><?= number_format($d['totalDeclaredBytes']) ?> octets (<?= FormatHelper::bytes($d['totalDeclaredBytes']) ?>)</td></tr>
-                <tr><td>Side <?= $side ?> : Sum DATA</td><td><?= number_format($d['totalSumData']) ?></td></tr>
+                <tr><td>Side <?= $side ?><?= $t['disk_spec_all_sect_decl'] ?></td><td><?= number_format($d['totalDeclaredBytes']) ?> (<?= FormatHelper::bytes($d['totalDeclaredBytes']) ?>)</td></tr>
+                <tr><td>Side <?= $side ?><?= $t['disk_spec_sum_data'] ?></td><td><?= number_format($d['totalSumData']) ?></td></tr>
                 <?php endfor; ?>
             </table>
         </div>
         <div class="spec-card">
-            <span class="card-title">📊 Side 1 — Tailles de secteurs &amp; flags</span>
+            <span class="card-title"><?= sprintf($t['disk_side_sectors_title'], 1) ?></span>
             <table>
                 <?php
-                $sizeLabels = [
-                    0 => 'SectorSize 0 (128 octets)',
-                    1 => 'SectorSize 1 (256 octets)',
-                    2 => 'SectorSize 2 (512 octets)',
-                    3 => 'SectorSize 3 (1024 octets)',
-                    4 => 'SectorSize 4 (2048 octets)',
-                    5 => 'SectorSize 5 (4096 octets)',
-                    6 => 'SectorSize 6 FULL (8192 octets)',
-                    7 => 'SectorSize 7 FULL (16384 octets)',
-                    8 => 'SectorSize 8 FULL (32768 octets)',
-                    9 => 'SectorSize &gt; 8',
-                ];
-                foreach ($sizeLabels as $n => $lbl):
-                    $cnt = $d['sizeCounts'][$n] ?? 0;
+                $sizeBytes = [128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, null];
+                for ($n = 0; $n <= 9; $n++):
+                    $cnt   = $d['sizeCounts'][$n] ?? 0;
+                    $bytes = $sizeBytes[$n];
+                    if ($n < 9) {
+                        $lbl = 'SectorSize ' . $n . ' (' . number_format($bytes) . ')';
+                    } else {
+                        $lbl = 'SectorSize &gt; 8';
+                    }
                 ?>
                 <tr>
                     <td><?= $lbl ?></td>
                     <td style="text-align:right;<?= $cnt > 0 ? 'color:var(--accent);font-weight:700' : '' ?>"><?= $cnt ?></td>
                 </tr>
-                <?php endforeach; ?>
+                <?php endfor; ?>
                 <tr style="border-top:2px solid var(--border)">
-                    <td><strong>TOTAL SECTORS</strong></td>
+                    <td><strong><?= $t['disk_total_sectors'] ?></strong></td>
                     <td style="text-align:right;font-weight:700;color:var(--accent3)"><?= $d['totalSectors'] ?></td>
                 </tr>
-                <tr><td>Sector USED</td><td style="text-align:right;color:var(--green);font-weight:700"><?= $d['usedSectors'] ?></td></tr>
-                <tr><td>Sector NOT USED</td><td style="text-align:right"><?= $d['totalSectors'] - $d['usedSectors'] ?></td></tr>
+                <tr><td><?= $t['disk_sector_used'] ?></td><td style="text-align:right;color:var(--green);font-weight:700"><?= $d['usedSectors'] ?></td></tr>
+                <tr><td><?= $t['disk_sector_not_used'] ?></td><td style="text-align:right"><?= $d['totalSectors'] - $d['usedSectors'] ?></td></tr>
                 <tr><td colspan="2">&nbsp;</td></tr>
                 <tr>
-                    <td>Incomplete Sector</td>
+                    <td><?= $t['disk_sector_incomplete'] ?></td>
                     <td style="text-align:right;<?= $d['incompleteSectors'] > 0 ? 'color:var(--orange);font-weight:700' : '' ?>"><?= $d['incompleteSectors'] ?></td>
                 </tr>
                 <tr>
-                    <td>SectorErased</td>
+                    <td><?= $t['disk_sector_erased'] ?></td>
                     <td style="text-align:right;<?= $d['erasedSectors'] > 0 ? 'color:#84cfef;font-weight:700;background:rgba(132,207,239,.1)' : '' ?>"><?= $d['erasedSectors'] ?></td>
                 </tr>
                 <tr>
-                    <td>Weak Sectors</td>
+                    <td><?= $t['disk_weak_sectors'] ?></td>
                     <td style="text-align:right;<?= $d['weakSectors'] > 0 ? 'color:var(--red);font-weight:700' : '' ?>"><?= $d['weakSectors'] ?></td>
                 </tr>
                 <tr>
-                    <td>TOTAL - Weak Sectors</td>
+                    <td><?= $t['disk_total_weak'] ?></td>
                     <td style="text-align:right;<?= $d['totalWeakSectors'] > 0 ? 'background:rgba(255,68,68,.15);color:var(--red);font-weight:700' : '' ?>"><?= $d['totalWeakSectors'] ?></td>
                 </tr>
-                <tr><td>Sector with GAPS information</td><td style="text-align:right">0</td></tr>
-                <tr><td>Sector with GAP2 information</td><td style="text-align:right">0</td></tr>
+                <tr><td><?= $t['disk_gaps'] ?></td><td style="text-align:right">0</td></tr>
+                <tr><td><?= $t['disk_gap2'] ?></td><td style="text-align:right">0</td></tr>
                 <tr>
-                    <td>FDC Errors</td>
+                    <td><?= $t['disk_fdc_errors'] ?></td>
                     <td style="text-align:right;<?= ($d['fdcErrors'] ?? 0) > 0 ? 'color:var(--orange);font-weight:700' : '' ?>"><?= $d['fdcErrors'] ?? 0 ?></td>
                 </tr>
             </table>
         </div>
     </div>
-
-    <?php
-    // ── Regrouper les secteurs par track ──────────────────────────────────────
-    $trackMap = [];
-    foreach ($d['sectors'] as $s) {
-        $trackMap[$s['track']][] = $s;
-    }
-    ksort($trackMap);
-
-    $nbTracks  = max(1, count($trackMap));
-    $cx        = 300;   // centre SVG
-    $cy        = 300;
-    $rMin      = 40;    // rayon piste la plus intérieure (track 0)
-    $rMax      = 270;   // rayon piste la plus extérieure
-    $rStep     = ($rMax - $rMin) / max(1, $nbTracks);
-    $svgW      = 600;
-    $svgH      = 620;
-
-    // Couleurs (identiques à la map existante)
-    $colors = [
-        'normal-used'        => ['fill' => '#FFFFFF', 'text' => '#000000'],
-        'normal-empty'       => ['fill' => '#3a3a5a', 'text' => '#7a7a9a'],
-        'erased-used'        => ['fill' => '#84CFEF', 'text' => '#003366'],
-        'erased-empty'       => ['fill' => '#0073DF', 'text' => '#ffffff'],
-        'weak'               => ['fill' => '#FF0000', 'text' => '#ffffff'],
-        'weak-empty'         => ['fill' => '#A00000', 'text' => '#ffffff'],
-        'weak-erased'        => ['fill' => '#FF00FF', 'text' => '#ffffff'],
-        'weak-erased-empty'  => ['fill' => '#BA00BA', 'text' => '#ffffff'],
-        'incomplete'         => ['fill' => '#e8ffe8', 'text' => '#003300'],
-        // Secteurs de protection N=6 (Hexagon)
-        'protection-n6'      => ['fill' => '#FFB300', 'text' => '#000000'],
-        'protection-n6-empty'=> ['fill' => '#7a5500', 'text' => '#FFB300'],
-    ];
-
-    // Protections détectées par ProtectionDetector (via index.php)
-    $protections = $d['protections'] ?? [];
-    $hasN6       = ($d['sizeCounts'][6] ?? 0) > 0;
-
-    /**
-     * Calcule le path SVG d'un secteur en arc (anneau de disque).
-     * @param float $cx      centre X
-     * @param float $cy      centre Y
-     * @param float $r1      rayon intérieur
-     * @param float $r2      rayon extérieur
-     * @param float $aStart  angle de début en degrés
-     * @param float $aEnd    angle de fin en degrés
-     */
-    function diskSectorPath(float $cx, float $cy, float $r1, float $r2, float $aStart, float $aEnd): string {
-        $gap    = 1.2; // degrés de séparation visuelle entre secteurs
-        $aStart += $gap / 2;
-        $aEnd   -= $gap / 2;
-
-        $toRad = M_PI / 180;
-        $x1 = $cx + $r1 * cos($aStart * $toRad);
-        $y1 = $cy + $r1 * sin($aStart * $toRad);
-        $x2 = $cx + $r2 * cos($aStart * $toRad);
-        $y2 = $cy + $r2 * sin($aStart * $toRad);
-        $x3 = $cx + $r2 * cos($aEnd   * $toRad);
-        $y3 = $cy + $r2 * sin($aEnd   * $toRad);
-        $x4 = $cx + $r1 * cos($aEnd   * $toRad);
-        $y4 = $cy + $r1 * sin($aEnd   * $toRad);
-
-        $large = ($aEnd - $aStart > 180) ? 1 : 0;
-
-        return sprintf(
-            'M %.2f %.2f L %.2f %.2f A %.2f %.2f 0 %d 1 %.2f %.2f L %.2f %.2f A %.2f %.2f 0 %d 0 %.2f %.2f Z',
-            $x1, $y1, $x2, $y2,
-            $r2, $r2, $large, $x3, $y3,
-            $x4, $y4,
-            $r1, $r1, $large, $x1, $y1
-        );
-    }
-    ?>
 
 </div>

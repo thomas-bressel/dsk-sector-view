@@ -1,16 +1,16 @@
 <div id="tab-data" class="tab-panel">
 
     <?php if (empty($d['sectors'])): ?>
-        <div class="empty-state"><div class="es-icon">📭</div>No sectors found.</div>
+        <div class="empty-state"><div class="es-icon">📭</div><?= htmlspecialchars($t['data_no_sectors']) ?></div>
     <?php else: ?>
 
     <div class="sdata-toolbar">
-        <label for="sdata-select" class="sdata-label">Choose sector :</label>
+        <label for="sdata-select" class="sdata-label"><?= htmlspecialchars($t['data_choose_sector']) ?></label>
         <select id="sdata-select" onchange="sdataShow(this.value)">
             <?php foreach ($d['sectors'] as $i => $s): ?>
                 <option value="<?= $i ?>">
-                    Track <?= str_pad($s['track'], 2, '0', STR_PAD_LEFT) ?>
-                    Sector #<?= strtoupper(str_pad(dechex($s['R']), 2, '0', STR_PAD_LEFT)) ?>
+                    <?= $t['data_track_label'] ?><?= str_pad($s['track'], 2, '0', STR_PAD_LEFT) ?>
+                    <?= $t['data_sector_label'] ?><?= strtoupper(str_pad(dechex($s['R']), 2, '0', STR_PAD_LEFT)) ?>
                 </option>
             <?php endforeach; ?>
         </select>
@@ -32,14 +32,11 @@
         ?>
         <div class="sdata-panel <?= $i === 0 ? 'active' : '' ?>" id="sdata-panel-<?= $i ?>">
             <div class="sdata-size">
-                Size : <?= $declSize ?> (Real : <?= $realSize ?>)<?= $flagStr ?>
+                <?= $t['data_size_label'] ?><?= $declSize ?> (<?= $t['data_real_size_label'] ?><?= $realSize ?>)<?= $flagStr ?>
             </div>
             <pre class="hex-dump"><?php
                 for ($off = 0; $off < $len; $off += 16) {
-                    // Adresse
                     echo sprintf('%06X: ', $off);
-
-                    // Hex
                     $hex = '';
                     $asc = '';
                     for ($b = 0; $b < 16; $b++) {
@@ -52,7 +49,6 @@
                             $asc .= ' ';
                         }
                     }
-
                     echo htmlspecialchars($hex) . ' ' . htmlspecialchars($asc) . "\n";
                 }
             ?></pre>

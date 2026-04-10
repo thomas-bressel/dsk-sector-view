@@ -3,17 +3,17 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th>Track</th>
-                <th>Sector ID</th>
-                <th>Size</th>
-                <th>Real Size</th>
-                <th>Sum DATA</th>
-                <th>FDC FLAGS</th>
-                <th>GAPS</th>
-                <th>GAP2</th>
-                <th>Erased</th>
-                <th>Weak</th>
-                <th>Used</th>
+                <th><?= $t['sectors_col_track'] ?></th>
+                <th><?= $t['sectors_col_id'] ?></th>
+                <th><?= $t['sectors_col_size'] ?></th>
+                <th><?= $t['sectors_col_real_size'] ?></th>
+                <th><?= $t['sectors_col_sum_data'] ?></th>
+                <th><?= $t['sectors_col_fdc_flags'] ?></th>
+                <th><?= $t['sectors_col_gaps'] ?></th>
+                <th><?= $t['sectors_col_gap2'] ?></th>
+                <th><?= $t['sectors_col_erased'] ?></th>
+                <th><?= $t['sectors_col_weak'] ?></th>
+                <th><?= $t['sectors_col_used'] ?></th>
             </tr>
         </thead>
         <tbody>
@@ -27,15 +27,15 @@
             <td class="mono center"><?= FormatHelper::fdcBinary($s['sr1']) ?></td>
             <td class="mono center">-</td>
             <td class="mono center">-</td>
-            <td class="center"><?= FormatHelper::badge($s['isErased'], 'YES', 'erased', '-') ?></td>
-            <td class="center"><?= FormatHelper::badge($s['isWeak'],   'YES', 'weak',   '-') ?></td>
-            <td class="center"><?= FormatHelper::badge($s['isUsed'],   'YES', 'yes',    '-') ?></td>
+            <td class="center"><?= FormatHelper::badge($s['isErased'], $t['sectors_yes'], 'erased', '-') ?></td>
+            <td class="center"><?= FormatHelper::badge($s['isWeak'],   $t['sectors_yes'], 'weak',   '-') ?></td>
+            <td class="center"><?= FormatHelper::badge($s['isUsed'],   $t['sectors_yes'], 'yes',    '-') ?></td>
         </tr>
         <?php endforeach; ?>
         </tbody>
         <tfoot>
             <tr style="background:var(--bg3);font-weight:700">
-                <td colspan="3" style="color:var(--text-dim)">Total</td>
+                <td colspan="3" style="color:var(--text-dim)"><?= $t['sectors_total'] ?></td>
                 <td class="center"><?= number_format($d['totalRealBytes']) ?></td>
                 <td class="mono"><?= number_format($d['totalSumData']) ?></td>
                 <td colspan="6"></td>

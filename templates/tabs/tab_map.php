@@ -4,40 +4,40 @@
 
     <!-- Barre de stats -->
     <div class="map-stats-bar">
-        <div class="map-stats-header">Face : 1</div>
+        <div class="map-stats-header"><?= sprintf($t['map_face'], 1) ?></div>
         <div class="map-stats-row">
             <?php
-            $mapSizeLabels = ['Size 0','Size 1','Size 2','Size 3','Size 4','Size 5','Size 6','Size 7','Size 8','Size >8'];
             for ($n = 0; $n <= 9; $n++):
                 $cnt = $ms['sizeCounts'][$n] ?? 0;
+                $lbl = $n < 9 ? 'Size ' . $n : 'Size >8';
             ?>
             <div class="map-stat-cell <?= $cnt > 0 ? 'has-value' : '' ?>">
-                <div class="msc-label"><?= $mapSizeLabels[$n] ?></div>
+                <div class="msc-label"><?= $lbl ?></div>
                 <div class="msc-value"><?= $cnt ?></div>
             </div>
             <?php endfor; ?>
             <div class="map-stat-cell erased-cell <?= $ms['erased'] > 0 ? 'has-value' : '' ?>">
-                <div class="msc-label">Erased</div>
+                <div class="msc-label"><?= $t['map_stat_erased'] ?></div>
                 <div class="msc-value"><?= $ms['erased'] ?></div>
             </div>
             <div class="map-stat-cell weak-cell <?= $ms['weak'] > 0 ? 'has-value' : '' ?>">
-                <div class="msc-label">Weak Sector</div>
+                <div class="msc-label"><?= $t['map_stat_weak'] ?></div>
                 <div class="msc-value"><?= $ms['weak'] ?></div>
             </div>
             <div class="map-stat-cell incomplete-cell <?= $ms['incomplete'] > 0 ? 'has-value' : '' ?>">
-                <div class="msc-label">Incomplete Sector</div>
+                <div class="msc-label"><?= $t['map_stat_incomplete'] ?></div>
                 <div class="msc-value"><?= $ms['incomplete'] ?></div>
             </div>
             <div class="map-stat-cell total-weak-cell <?= $ms['weakTotal'] > 0 ? 'has-value' : '' ?>">
-                <div class="msc-label">Total Weak</div>
+                <div class="msc-label"><?= $t['map_stat_total_weak'] ?></div>
                 <div class="msc-value"><?= $ms['weakTotal'] ?></div>
             </div>
             <div class="map-stat-cell gaps-cell">
-                <div class="msc-label">GAPS</div>
+                <div class="msc-label"><?= $t['map_stat_gaps'] ?></div>
                 <div class="msc-value"><?= $ms['gaps'] ?></div>
             </div>
             <div class="map-stat-cell gaps-cell">
-                <div class="msc-label">GAP2</div>
+                <div class="msc-label"><?= $t['map_stat_gap2'] ?></div>
                 <div class="msc-value"><?= $ms['gap2'] ?></div>
             </div>
         </div>
@@ -45,16 +45,16 @@
 
     <!-- Légende -->
     <div class="map-legend">
-        <span style="font-size:12px;font-weight:700;color:var(--text);margin-right:4px">Légende :</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#FFFFFF;border:1px solid #000"></span>Normal utilisé</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#A0A0A0;border:1px solid #555"></span>Normal vide</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#84CFEF;border:1px solid #000"></span>Erased utilisé</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#0073DF;border:1px solid #000"></span>Erased vide</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#FF0000;border:1px solid #000"></span>Weak utilisé</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#A00000;border:1px solid #000"></span>Weak vide</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#FF00FF;border:1px solid #000"></span>Weak+Erased utilisé</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#BA00BA;border:1px solid #000"></span>Weak+Erased vide</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:#fff;border:2px dashed #0a0"></span>Incomplet</span>
+        <span style="font-size:12px;font-weight:700;color:var(--text);margin-right:4px"><?= $t['map_legend_label'] ?></span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#FFFFFF;border:1px solid #000"></span><?= $t['map_legend_normal_used'] ?></span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#A0A0A0;border:1px solid #555"></span><?= $t['map_legend_normal_empty'] ?></span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#84CFEF;border:1px solid #000"></span><?= $t['map_legend_erased_used'] ?></span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#0073DF;border:1px solid #000"></span><?= $t['map_legend_erased_empty'] ?></span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#FF0000;border:1px solid #000"></span><?= $t['map_legend_weak_used'] ?></span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#A00000;border:1px solid #000"></span><?= $t['map_legend_weak_empty'] ?></span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#FF00FF;border:1px solid #000"></span><?= $t['map_legend_weak_erased_used'] ?></span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#BA00BA;border:1px solid #000"></span><?= $t['map_legend_weak_erased_empty'] ?></span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#fff;border:2px dashed #0a0"></span><?= $t['map_legend_incomplete'] ?></span>
     </div>
 
     <!-- Carte secteurs -->
@@ -62,9 +62,9 @@
     <table class="map-table">
         <thead>
             <tr>
-                <th class="map-th-track">Track</th>
-                <th>Sectors</th>
-                <th class="map-th-nb">Nb</th>
+                <th class="map-th-track"><?= $t['map_col_track'] ?></th>
+                <th><?= $t['map_col_sectors'] ?></th>
+                <th class="map-th-nb"><?= $t['map_col_nb'] ?></th>
             </tr>
         </thead>
         <tbody>

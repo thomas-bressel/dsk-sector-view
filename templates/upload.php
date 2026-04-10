@@ -1,7 +1,7 @@
 <div class="upload-card">
     <div class="icon">📀</div>
-    <h2>Analyser une disquette Amstrad</h2>
-    <p>Déposez un fichier <strong>.dsk</strong> au format Extended CPC DSK.<br>Taille maximale : 5 Mo.</p>
+    <h2><?= htmlspecialchars($t['upload_title']) ?></h2>
+    <p><?= $t['upload_desc'] ?></p>
 
     <?php $message = $uploadError; include __DIR__ . '/partials/error_msg.php'; ?>
 
@@ -10,12 +10,12 @@
 
         <div class="drop-zone" id="drop-zone">
             <input type="file" name="dsk_file" id="dsk_file" accept=".dsk">
-            <div class="dz-label">Glissez votre fichier ici ou <span>cliquez pour parcourir</span></div>
+            <div class="dz-label"><?= $t['upload_dropzone'] ?></div>
             <div class="dz-file-name" id="dz-file-name"></div>
         </div>
 
         <button type="submit" class="btn">
-            <span>🔍</span> Analyser le fichier
+            <?= htmlspecialchars($t['upload_btn']) ?>
         </button>
     </form>
 </div>
