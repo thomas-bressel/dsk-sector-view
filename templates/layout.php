@@ -74,7 +74,7 @@
 </div><!-- /container -->
 
 <footer class="site-footer">
-    DSKscan &nbsp;·&nbsp; v<?= APP_VERSION ?> &nbsp;·&nbsp; <?= APP_DATE ?>
+    DSKscan &nbsp;·&nbsp; v<?= APP_VERSION ?> &nbsp;·&nbsp; <?= APP_DATE ?> &nbsp;·&nbsp; <a href="https://github.com/thomas-bressel" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">thomas-bressel</a> &nbsp;·&nbsp; MIT License
 </footer>
 
 <script src="public/assets/app.js"></script>
