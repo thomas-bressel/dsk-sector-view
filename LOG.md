@@ -1,4 +1,4 @@
-# Changelog — DSK Tool PHP
+# Changelog — DSKscan
 
 ## [1.0.0] — 2026-04-11
 
@@ -14,10 +14,10 @@
 - Full English PHPDoc on all classes (`DskParser`, `DiskStats`, `DskWriter`, `DskRepackager`, `ProtectionDetector`, `CpmDirectoryParser`, `FormatHelper`, `CsrfService`, `FileCleanupService`)
 
 ### Changed
-- Application renamed from *DSK Sector Viewer* to **DSK Tool PHP**
+- Application renamed from *DSK Sector Viewer* to **DSKscan**
 - `FormatHelper::bytes()` and `sectorTooltip()` now accept `$t` for localised units and flags
 - All templates fully wired to `$t[key]` — no hardcoded strings remain
-- Docker container renamed to `dsk-tool-php`
+- Docker container renamed to `dskscan`
 
 ---
 

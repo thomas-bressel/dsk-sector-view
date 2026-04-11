@@ -1,5 +1,6 @@
 <div class="upload-card">
-    <div class="icon">📀</div>
+    <!-- <div class="icon">📀</div> -->
+    <img src="public/assets/img/logo-dsk-tool-php.webp" alt="DSKscan" class="logo-big">
     <h2><?= htmlspecialchars($t['upload_title']) ?></h2>
     <p><?= $t['upload_desc'] ?></p>
 

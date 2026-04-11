@@ -5,8 +5,8 @@
  *
  * Orchestrates the full repackaging of a DSK file:
  *  1. Parses the source DSK via DskParser
- *  2. Injects a DSKTLPHP.TXT file into the CP/M FAT (track 0)
- *  3. Rebuilds the DSK via DskWriter with creator "DskToolPHP"
+ *  2. Injects a DSKSCAN.TXT file into the CP/M FAT (track 0)
+ *  3. Rebuilds the DSK via DskWriter with creator "DSKscan"
  *     and deterministic pseudo-random padding to ensure a different binary hash
  *
  * The game data remains 100% intact: only the DSK container metadata and binary
@@ -22,23 +22,23 @@
  *   $repackager = new DskRepackager(new DskParser(), new DskWriter());
  *   $repackager->repack('/path/to/source.dsk', '/path/to/output.dsk');
  *
- * @package DskToolPhp\Service
+ * @package DSKscan\Service
  */
 class DskRepackager
 {
     /** Creator string injected into the DSK disk header */
-    private const CREATOR = 'DskToolPHP';
+    private const CREATOR = 'DSKscan';
 
     /** Filename of the signature file injected into the CP/M FAT */
-    private const SIG_FILENAME = 'DSKTLPHP';
+    private const SIG_FILENAME = 'DSKSCAN';
 
     /** Extension of the signature file */
     private const SIG_EXT = 'TXT';
 
     /** Content of the signature file */
     private const SIG_CONTENT =
-        "Packaged by DskToolPhp\r\n" .
-        "Tool    : DskToolPHP\r\n" .
+        "Packaged by DSKscan\r\n" .
+        "Tool    : DSKscan\r\n" .
         "Source  : Personal archive\r\n" .
         "\x1A"; // CP/M EOF marker
 
@@ -87,7 +87,7 @@ class DskRepackager
     // ----------------------------------------------------------------
 
     /**
-     * Injects a DSKTLPHP.TXT entry into the CP/M FAT on track 0.
+     * Injects a DSKSCAN.TXT entry into the CP/M FAT on track 0.
      *
      * The CP/M FAT is stored in the sectors of track 0. The method finds the
      * first free directory slot (0xE5) and writes the signature entry there.
@@ -115,7 +115,7 @@ class DskRepackager
             return $parsed; // FAT full — no injection, DSK remains intact
         }
 
-        // Build the 32-byte CP/M directory entry for DSKTLPHP.TXT
+        // Build the 32-byte CP/M directory entry for DSKSCAN.TXT
         $entry = $this->buildDirEntry(
             self::SIG_FILENAME,
             self::SIG_EXT,

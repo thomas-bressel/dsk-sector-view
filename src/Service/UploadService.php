@@ -15,7 +15,7 @@
  * under a cryptographically random name to prevent filename collisions and
  * path traversal attacks.
  *
- * @package DskToolPhp\Service
+ * @package DSKscan\Service
  */
 class UploadService
 {

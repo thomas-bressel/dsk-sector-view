@@ -1,4 +1,4 @@
-# DSK Tool PHP
+# DSKscan
 
 > Analyseur de disquettes Amstrad CPC au format Extended DSK — visualisation des pistes, secteurs, catalogue CP/M, protections et repackaging.
 
@@ -8,7 +8,7 @@
 
 ### Présentation
 
-**DSK Tool PHP** est une application web en PHP pur permettant d'analyser des fichiers `.dsk` au format **Extended CPC DSK** (Amstrad CPC). Elle offre une interface moderne à onglets pour explorer l'ensemble des informations contenues dans une image disquette : structure physique, catalogue de fichiers CP/M, carte visuelle des secteurs, détection des protections et repackaging.
+**DSKscan** est une application web en PHP pur permettant d'analyser des fichiers `.dsk` au format **Extended CPC DSK** (Amstrad CPC). Elle offre une interface moderne à onglets pour explorer l'ensemble des informations contenues dans une image disquette : structure physique, catalogue de fichiers CP/M, carte visuelle des secteurs, détection des protections et repackaging.
 
 L'interface est disponible en **français**, **anglais**, **allemand** et **espagnol**.
 
@@ -50,7 +50,7 @@ L'interface est disponible en **français**, **anglais**, **allemand** et **espa
 ### Structure du projet
 
 ```
-dsk-tool-php/
+dskscan/
 ├── index.php                        Point d'entrée unique (bootstrap + dispatch)
 ├── config/
 │   └── app.php                      Constantes de configuration (version, chemins)
@@ -92,8 +92,8 @@ dsk-tool-php/
 │       ├── style.css                Styles CSS
 │       ├── app.js                   JavaScript (onglets, drag-and-drop)
 │       └── img/
-│           ├── logo-dsk-tool-php.webp       Logo principal
-│           └── logo-dsk-tool-php-mini.webp  Logo miniature (favicon, bannière)
+│           ├── logo-dskscan.webp       Logo principal
+│           └── logo-dskscan-mini.webp  Logo miniature (favicon, bannière)
 └── files/                           Stockage temporaire des uploads
 ```
 
@@ -124,7 +124,7 @@ L'application suit une **séparation stricte des responsabilités** sans framewo
 ### Installation
 
 ```bash
-# Copier le dossier dsk-tool-php/ dans la racine web
+# Copier le dossier dskscan/ dans la racine web
 # Vérifier les permissions sur le dossier d'upload
 chmod 755 files/
 

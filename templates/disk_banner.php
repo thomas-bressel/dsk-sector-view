@@ -1,5 +1,5 @@
 <div class="disk-banner">
-    <img src="public/assets/img/logo-dsk-tool-php-mini.webp" alt="DSK Tool PHP" class="disk-icon">
+    <img src="public/assets/img/logo-dsk-tool-php-mini.webp" alt="DSKscan" class="disk-icon">
     <div>
         <div class="disk-title"><?= htmlspecialchars($originalName) ?></div>
         <div class="disk-meta">

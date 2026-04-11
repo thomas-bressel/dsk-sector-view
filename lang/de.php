@@ -3,7 +3,7 @@
 return [
 
     // ── Layout ────────────────────────────────────────────────────────────────
-    'app_name'          => 'DSK Tool PHP',
+    'app_name'          => 'DSKscan',
     'app_subtitle'      => 'Amstrad CPC · Extended DSK Format',
 
     // ── Tabs ──────────────────────────────────────────────────────────────────

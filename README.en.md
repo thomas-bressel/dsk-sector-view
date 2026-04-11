@@ -1,4 +1,4 @@
-# DSK Tool PHP
+# DSKscan
 
 > Amstrad CPC disk image analyser for the Extended DSK format — track, sector, CP/M catalogue, copy-protection visualisation and repacking.
 
@@ -8,7 +8,7 @@
 
 ### Overview
 
-**DSK Tool PHP** is a pure PHP web application for analysing Amstrad CPC disk image files in **Extended CPC DSK** format. It provides a modern tabbed interface to explore all information contained in a disk image: physical structure, CP/M file catalogue, visual sector map, copy protection detection, and repacking.
+**DSKscan** is a pure PHP web application for analysing Amstrad CPC disk image files in **Extended CPC DSK** format. It provides a modern tabbed interface to explore all information contained in a disk image: physical structure, CP/M file catalogue, visual sector map, copy protection detection, and repacking.
 
 The interface is available in **French**, **English**, **German** and **Spanish**.
 
@@ -50,7 +50,7 @@ The interface is available in **French**, **English**, **German** and **Spanish*
 ### Project structure
 
 ```
-dsk-tool-php/
+dskscan/
 ├── index.php                        Single entry point (bootstrap + dispatch)
 ├── config/
 │   └── app.php                      Configuration constants (version, paths)
@@ -92,8 +92,8 @@ dsk-tool-php/
 │       ├── style.css                CSS styles
 │       ├── app.js                   JavaScript (tabs, drag-and-drop)
 │       └── img/
-│           ├── logo-dsk-tool-php.webp       Main logo
-│           └── logo-dsk-tool-php-mini.webp  Miniature logo (favicon, banner)
+│           ├── logo-dskscan.webp       Main logo
+│           └── logo-dskscan-mini.webp  Miniature logo (favicon, banner)
 └── files/                           Temporary upload storage
 ```
 
@@ -124,7 +124,7 @@ The application follows a **strict separation of concerns** without any framewor
 ### Installation
 
 ```bash
-# Copy the dsk-tool-php/ folder to your web root
+# Copy the dskscan/ folder to your web root
 # Ensure the upload directory is writable
 chmod 755 files/
 

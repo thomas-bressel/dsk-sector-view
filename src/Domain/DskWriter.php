@@ -10,7 +10,7 @@
  *  - Rebuilt from scratch: the output binary is guaranteed to differ from the
  *    original even when sector payloads are identical.
  *  - Padding areas in the disk and track headers are filled with deterministic
- *    pseudo-random bytes (fixed seed "DskToolPHP").
+ *    pseudo-random bytes (fixed seed "DSKscan").
  *  - All protections are fully preserved:
  *      · Weak sectors   : realSize > declSize, multi-read data kept verbatim
  *      · Erased sectors : SR1/SR2 flags rewritten as-is
@@ -40,7 +40,7 @@
  *    Pseudo-random padding up to 256 bytes
  *    Followed by concatenated sector data
  *
- * @package DskToolPhp\Domain
+ * @package DSKscan\Domain
  */
 class DskWriter
 {
@@ -65,7 +65,7 @@ class DskWriter
      * @param  string $creator  Creator string (max 14 chars, NUL-padded)
      * @throws \RuntimeException If the output file cannot be created
      */
-    public function write(array $parsed, string $destPath, string $creator = 'DskToolPHP'): void
+    public function write(array $parsed, string $destPath, string $creator = 'DSKscan'): void
     {
         $fp = fopen($destPath, 'wb');
         if (!$fp) {

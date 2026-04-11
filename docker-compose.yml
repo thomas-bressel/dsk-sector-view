@@ -1,7 +1,7 @@
 services:
-  dsk-tool-php:
+  dskscan:
     build: .
-    container_name: dsk-tool-php
+    container_name: dskscan
     ports:
       - "8080:80"
     volumes:

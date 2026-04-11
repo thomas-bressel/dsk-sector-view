@@ -1,4 +1,4 @@
-# DSK Tool PHP
+# DSKscan
 
 Amstrad CPC · Extended DSK Format Analyser — v1.0.0
 

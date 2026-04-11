@@ -8,7 +8,7 @@
  *
  * All methods are pure functions with no side effects.
  *
- * @package DskToolPhp\Helper
+ * @package DSKscan\Helper
  */
 class FormatHelper
 {

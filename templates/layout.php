@@ -10,7 +10,7 @@
 <body>
 
 <header class="site-header">
-    <img src="public/assets/img/logo-dsk-tool-php.webp" alt="DSK Tool PHP" class="logo">
+    <img src="public/assets/img/logo-dsk-tool-php-mini.webp" alt="DSKscan" class="logo">
     <h1><?= htmlspecialchars($t['app_name']) ?></h1>
     <span class="sub"><?= htmlspecialchars($t['app_subtitle']) ?></span>
 
@@ -74,7 +74,7 @@
 </div><!-- /container -->
 
 <footer class="site-footer">
-    DSK Tool PHP &nbsp;·&nbsp; v<?= APP_VERSION ?> &nbsp;·&nbsp; <?= APP_DATE ?>
+    DSKscan &nbsp;·&nbsp; v<?= APP_VERSION ?> &nbsp;·&nbsp; <?= APP_DATE ?>
 </footer>
 
 <script src="public/assets/app.js"></script>

@@ -20,7 +20,7 @@
  *
  * Multiple extents with the same user/name/ext are merged into a single file entry.
  *
- * @package DskToolPhp\Domain
+ * @package DSKscan\Domain
  */
 class CpmDirectoryParser
 {

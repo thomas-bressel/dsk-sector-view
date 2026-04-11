@@ -15,7 +15,7 @@
  *   - Map stats      : pre-computed values for the MAP tab statistics bar
  *   - Track data     : per-track summary for the TRACKS tab
  *
- * @package DskToolPhp\Domain
+ * @package DSKscan\Domain
  */
 class DiskStats
 {

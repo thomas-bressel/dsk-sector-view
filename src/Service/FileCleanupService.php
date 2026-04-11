@@ -9,7 +9,7 @@
  * This service should be called at the beginning of each request to ensure
  * that stale uploads are removed before any new file is processed.
  *
- * @package DskToolPhp\Service
+ * @package DSKscan\Service
  */
 class FileCleanupService
 {

@@ -45,7 +45,7 @@
  * ]
  * </code>
  *
- * @package DskToolPhp\Domain
+ * @package DSKscan\Domain
  */
 class DskParser
 {

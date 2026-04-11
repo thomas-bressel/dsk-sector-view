@@ -21,7 +21,7 @@
  * The token name used as the session key is defined by the CSRF_TOKEN_NAME constant
  * in config/app.php.
  *
- * @package DskToolPhp\Service
+ * @package DSKscan\Service
  */
 class CsrfService
 {

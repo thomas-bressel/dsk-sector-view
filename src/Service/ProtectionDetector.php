@@ -10,7 +10,7 @@
  *   - color  : hex colour for the UI
  *   - desc   : short description
  *
- * @package DskToolPhp\Service
+ * @package DSKscan\Service
  */
 class ProtectionDetector
 {
