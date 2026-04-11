@@ -3,20 +3,20 @@
 /**
  * DskRepackager
  *
- * Orchestre le repackage complet d'un fichier DSK :
- *  1. Parse le DSK source via DskParser
- *  2. Injecte un fichier DSKTLPHP.TXT dans la FAT CP/M (track 0)
- *  3. Reconstruit le DSK via DskWriter avec le creator "DskToolPHP"
- *     et un padding pseudo-aléatoire garantissant un hash différent
+ * Orchestrates the full repackaging of a DSK file:
+ *  1. Parses the source DSK via DskParser
+ *  2. Injects a DSKTLPHP.TXT file into the CP/M FAT (track 0)
+ *  3. Rebuilds the DSK via DskWriter with creator "DskToolPHP"
+ *     and deterministic pseudo-random padding to ensure a different binary hash
  *
- * Le jeu reste 100% fonctionnel : seuls les métadonnées et la structure
- * binaire du conteneur DSK sont modifiées, jamais les données de jeu.
+ * The game data remains 100% intact: only the DSK container metadata and binary
+ * structure are modified, never the actual sector payload.
  *
- * Toutes les protections sont préservées intégralement :
- *  - Weak sectors  (realSize > declSize)
+ * All protections are fully preserved:
+ *  - Weak sectors   (realSize > declSize)
  *  - Erased sectors (SR2 bit 6)
- *  - Secteurs de taille N=6/7/8
- *  - Flags FDC SR1/SR2
+ *  - Oversized sectors (N=6/7/8)
+ *  - FDC flags SR1/SR2
  *
  * Usage:
  *   $repackager = new DskRepackager(new DskParser(), new DskWriter());
@@ -26,26 +26,26 @@
  */
 class DskRepackager
 {
-    /** Creator injecté dans le header DSK */
+    /** Creator string injected into the DSK disk header */
     private const CREATOR = 'DskToolPHP';
 
-    /** Nom du fichier de signature injecté dans la FAT CP/M */
+    /** Filename of the signature file injected into the CP/M FAT */
     private const SIG_FILENAME = 'DSKTLPHP';
 
-    /** Extension du fichier de signature */
+    /** Extension of the signature file */
     private const SIG_EXT = 'TXT';
 
-    /** Contenu du fichier de signature */
+    /** Content of the signature file */
     private const SIG_CONTENT =
         "Packaged by DskToolPhp\r\n" .
         "Tool    : DskToolPHP\r\n" .
         "Source  : Personal archive\r\n" .
-        "\x1A"; // EOF CP/M
+        "\x1A"; // CP/M EOF marker
 
-    /** Octet de remplissage pour les secteurs CP/M vides */
+    /** Filler byte for empty CP/M sectors and free directory entries */
     private const CPM_FILLER = 0xE5;
 
-    /** Taille d'une entrée de répertoire CP/M */
+    /** Size of one CP/M directory entry in bytes */
     private const DIR_ENTRY_SIZE = 32;
 
     // ----------------------------------------------------------------
@@ -60,85 +60,87 @@ class DskRepackager
     }
 
     // ----------------------------------------------------------------
-    // Interface publique
+    // Public interface
     // ----------------------------------------------------------------
 
     /**
-     * Repackage $sourcePath vers $destPath.
+     * Repackages $sourcePath into $destPath.
      *
-     * @param  string $sourcePath Chemin du DSK source
-     * @param  string $destPath   Chemin du DSK de sortie
-     * @throws \RuntimeException  En cas d'erreur de lecture/écriture
+     * @param  string $sourcePath Path to the source DSK file
+     * @param  string $destPath   Path to the output DSK file
+     * @throws \RuntimeException  On read/write failure
      */
     public function repack(string $sourcePath, string $destPath): void
     {
-        // Étape 1 — Parser le source
+        // Step 1 — Parse the source DSK
         $parsed = $this->parser->parse($sourcePath);
 
-        // Étape 2 — Injecter la signature dans la FAT CP/M (track 0)
+        // Step 2 — Inject the signature file into the CP/M FAT (track 0)
         $parsed = $this->injectSignature($parsed);
 
-        // Étape 3 — Écrire le DSK reconstruit
+        // Step 3 — Write the reconstructed DSK
         $this->writer->write($parsed, $destPath, self::CREATOR);
     }
 
     // ----------------------------------------------------------------
-    // Injection de la signature en FAT CP/M
+    // CP/M FAT signature injection
     // ----------------------------------------------------------------
 
     /**
-     * Injecte un fichier DSKTLPHP.TXT dans la FAT CP/M de la track 0.
+     * Injects a DSKTLPHP.TXT entry into the CP/M FAT on track 0.
      *
-     * La FAT CP/M est stockée dans les secteurs de la track 0.
-     * On cherche la première entrée libre (0xE5) et on y écrit notre entrée.
-     * Si la FAT est pleine, on passe silencieusement (le DSK reste valide).
+     * The CP/M FAT is stored in the sectors of track 0. The method finds the
+     * first free directory slot (0xE5) and writes the signature entry there.
+     * If the FAT is full, the method returns silently and the DSK remains valid.
      *
-     * @param  array $parsed Données parsées (modifiées en place)
-     * @return array         Données parsées avec signature injectée
+     * @param  array $parsed Parsed DSK data from DskParser
+     * @return array         Parsed data with the signature entry injected
      */
     private function injectSignature(array $parsed): array
     {
-        // Trouver le secteur de track 0 qui contient la FAT CP/M
-        // La FAT commence à l'entrée 0, qui se trouve dans le premier secteur de T0
+        // Locate the track-0 sectors that hold the CP/M FAT
         $track0Sectors = $this->getTrack0Sectors($parsed['tracks']);
 
         if (empty($track0Sectors)) {
-            return $parsed; // Pas de track 0 → on ne touche à rien
+            return $parsed; // No track 0 — leave DSK untouched
         }
 
-        // Construire le buffer FAT à partir des secteurs de T0 (dans l'ordre logique)
+        // Build a contiguous FAT buffer from track-0 sectors (in logical order)
         [$fatBuffer, $sectorOrder] = $this->buildFatBuffer($track0Sectors);
 
-        // Chercher un slot libre (0xE5) dans la FAT
+        // Find the first free directory slot (0xE5)
         $slotOffset = $this->findFreeDirSlot($fatBuffer);
 
         if ($slotOffset === null) {
-            return $parsed; // FAT pleine → pas d'injection, DSK intact
+            return $parsed; // FAT full — no injection, DSK remains intact
         }
 
-        // Construire l'entrée de répertoire CP/M pour DSKTLPHP.TXT
+        // Build the 32-byte CP/M directory entry for DSKTLPHP.TXT
         $entry = $this->buildDirEntry(
             self::SIG_FILENAME,
             self::SIG_EXT,
             self::SIG_CONTENT
         );
 
-        // Écrire l'entrée dans le buffer FAT
+        // Write the entry into the FAT buffer
         for ($i = 0; $i < self::DIR_ENTRY_SIZE; $i++) {
             $fatBuffer[$slotOffset + $i] = $entry[$i];
         }
 
-        // Redistribuer le buffer FAT modifié dans les secteurs de T0
+        // Distribute the modified FAT buffer back into the track-0 sectors
         $parsed['tracks'] = $this->applyFatBuffer($parsed['tracks'], $fatBuffer, $sectorOrder);
 
-        // Resynchroniser rawSectors depuis les tracks modifiées
+        // Resync rawSectors from the updated tracks
         $parsed['rawSectors'] = $this->rebuildRawSectors($parsed['tracks']);
 
         return $parsed;
     }
 
     /**
-     * Retourne les secteurs de la track 0, triés par ID logique (R).
+     * Returns the sectors of track 0, sorted by logical sector ID (R).
+     *
+     * @param  array[] $tracks Track array from DskParser
+     * @return array[]         Track-0 sectors sorted by R, or empty array if not found
      */
     private function getTrack0Sectors(array $tracks): array
     {
@@ -153,19 +155,22 @@ class DskRepackager
     }
 
     /**
-     * Concatène les données des secteurs de T0 en un seul buffer FAT.
-     * Retourne [buffer, [R => index_dans_parsed_tracks_sectors]].
+     * Concatenates track-0 sector data into a single FAT buffer.
+     * For weak sectors, only the first copy (declSize bytes) is used.
+     *
+     * @param  array[] $track0Sectors Track-0 sectors sorted by R
+     * @return array{0: string, 1: array<int,int>} [fatBuffer, sectorOrder (R => index)]
      */
     private function buildFatBuffer(array $track0Sectors): array
     {
         $buffer      = '';
-        $sectorOrder = []; // R → position dans le tableau de secteurs de T0
+        $sectorOrder = []; // R => position in the track-0 sector array
 
         foreach ($track0Sectors as $pos => $s) {
             $sectorOrder[$s['R']] = $pos;
-            // Pour les secteurs weak, on prend uniquement la première copie (declSize octets)
+            // For weak sectors, use only the first copy (declSize bytes)
             $effectiveData = substr($s['data'], 0, $s['declSize']);
-            // Padder si nécessaire
+            // Pad to declSize if the data is shorter
             if (strlen($effectiveData) < $s['declSize']) {
                 $effectiveData = str_pad($effectiveData, $s['declSize'], chr(self::CPM_FILLER));
             }
@@ -176,8 +181,10 @@ class DskRepackager
     }
 
     /**
-     * Cherche le premier slot d'entrée de répertoire libre (premier octet = 0xE5).
-     * Retourne l'offset dans le buffer, ou null si aucun slot disponible.
+     * Finds the first free CP/M directory slot in the FAT buffer (first byte = 0xE5).
+     *
+     * @param  string $fatBuffer Concatenated FAT buffer
+     * @return int|null          Byte offset of the free slot, or null if the FAT is full
      */
     private function findFreeDirSlot(string $fatBuffer): ?int
     {
@@ -193,16 +200,21 @@ class DskRepackager
     }
 
     /**
-     * Construit une entrée de répertoire CP/M de 32 octets.
+     * Builds a 32-byte CP/M directory entry for the given filename and content.
      *
-     * Structure CP/M d'une entrée :
-     *  Octet  0    : User number (0 = user 0)
-     *  Octets 1-8  : Nom du fichier (padded 0x20)
-     *  Octets 9-11 : Extension     (padded 0x20)
-     *  Octet  12   : Extent number (0)
-     *  Octets 13-14: Réservé (0)
-     *  Octet  15   : RC = record count (taille en blocs de 128 octets)
-     *  Octets 16-31: Allocation blocks (0 = non alloué, fichier sans blocs réels)
+     * CP/M directory entry layout:
+     *  Byte   0    : User number (0)
+     *  Bytes  1-8  : Filename, space-padded
+     *  Bytes  9-11 : Extension, space-padded
+     *  Byte   12   : Extent number (0)
+     *  Bytes  13-14: Reserved (0)
+     *  Byte   15   : RC — record count (number of 128-byte records)
+     *  Bytes  16-31: Allocation block numbers (all 0 — symbolic entry only)
+     *
+     * @param  string $name    Filename without extension (max 8 chars)
+     * @param  string $ext     File extension (max 3 chars)
+     * @param  string $content File content (used only to compute the RC field)
+     * @return string          32-byte binary directory entry
      */
     private function buildDirEntry(string $name, string $ext, string $content): string
     {
@@ -211,29 +223,28 @@ class DskRepackager
         // User 0
         $entry[0] = "\x00";
 
-        // Nom (8 octets, padded espace)
+        // Filename (8 bytes, space-padded)
         $namePad = str_pad(substr($name, 0, 8), 8, ' ');
         for ($i = 0; $i < 8; $i++) {
             $entry[1 + $i] = $namePad[$i];
         }
 
-        // Extension (3 octets, padded espace)
+        // Extension (3 bytes, space-padded)
         $extPad = str_pad(substr($ext, 0, 3), 3, ' ');
         for ($i = 0; $i < 3; $i++) {
             $entry[9 + $i] = $extPad[$i];
         }
 
-        // Extent = 0
+        // Extent number = 0
         $entry[12] = "\x00";
         $entry[13] = "\x00";
         $entry[14] = "\x00";
 
-        // RC = nombre de blocs de 128 octets (arrondi supérieur)
+        // RC = number of 128-byte records (rounded up), capped at 127
         $rc = (int)ceil(strlen($content) / 128);
-        $entry[15] = chr(min($rc, 127)); // max 127 records par extent
+        $entry[15] = chr(min($rc, 127));
 
-        // Blocs alloués : 0 (on ne stocke pas physiquement le fichier dans les données)
-        // Le fichier est référencé dans le répertoire mais sans blocs → taille symbolique
+        // Allocation blocks: all 0 (file is symbolic — no physical data blocks)
         for ($i = 16; $i < 32; $i++) {
             $entry[$i] = "\x00";
         }
@@ -242,31 +253,37 @@ class DskRepackager
     }
 
     /**
-     * Réécrit les secteurs de la track 0 avec le buffer FAT modifié.
+     * Rewrites track-0 sectors with the modified FAT buffer.
+     * Weak sectors have their extra copies reconstructed from the updated chunk.
+     *
+     * @param  array[] $tracks      Full track array (modified in place)
+     * @param  string  $fatBuffer   Modified FAT buffer to distribute back into sectors
+     * @param  array   $sectorOrder Sector order map (R => position index)
+     * @return array[]              Updated track array
      */
     private function applyFatBuffer(array &$tracks, string $fatBuffer, array $sectorOrder): array
     {
         foreach ($tracks as &$track) {
             if ($track['num'] !== 0) continue;
 
-            // Redistribuer le buffer dans les secteurs, dans l'ordre logique (par R)
+            // Distribute the buffer into sectors in logical order (sorted by R)
             $sortedSectors = $track['sectors'];
             usort($sortedSectors, fn($a, $b) => $a['R'] <=> $b['R']);
 
             $offset = 0;
             foreach ($sortedSectors as $sorted) {
-                // Retrouver le secteur dans le tableau original par R
+                // Find the matching sector in the original array by R
                 foreach ($track['sectors'] as &$s) {
                     if ($s['R'] !== $sorted['R']) continue;
 
                     $chunk = substr($fatBuffer, $offset, $s['declSize']);
                     $chunk = str_pad($chunk, $s['declSize'], chr(self::CPM_FILLER));
 
-                    // Weak sector : reconstruire les copies supplémentaires
+                    // Weak sector: reconstruct the extra copies from the updated chunk
                     if ($s['isWeak'] && $s['realSize'] > $s['declSize']) {
                         $copies    = (int)floor($s['realSize'] / $s['declSize']);
                         $s['data'] = str_repeat($chunk, $copies);
-                        // Ajuster au realSize exact
+                        // Trim to exact realSize
                         $s['data'] = substr($s['data'], 0, $s['realSize']);
                     } else {
                         $s['data'] = $chunk;
@@ -286,7 +303,10 @@ class DskRepackager
     }
 
     /**
-     * Reconstruit le tableau rawSectors à plat depuis toutes les tracks.
+     * Rebuilds the flat rawSectors array from all tracks after FAT injection.
+     *
+     * @param  array[] $tracks Updated track array
+     * @return array[]         Flat list of all sectors across all tracks
      */
     private function rebuildRawSectors(array $tracks): array
     {
