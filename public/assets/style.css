@@ -35,7 +35,12 @@ body {
     align-items: center;
     gap: 14px;
 }
-.site-header .logo { height: 36px; width: auto; display: block; }
+.site-header .logo { 
+    height: 36px;
+     width: auto;
+     display: block;
+ }
+
 .site-header h1 {
     font-size: 22px;
     font-weight: 700;
@@ -104,6 +109,7 @@ body {
     text-align: center;
 }
 .upload-card .icon { font-size: 56px; margin-bottom: 16px; }
+.upload-card .logo-big { width: 200px; height: auto; }
 .upload-card h2 { font-size: 20px; margin-bottom: 8px; color: var(--accent3); }
 .upload-card p  { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
 
