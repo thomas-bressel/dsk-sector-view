@@ -227,7 +227,7 @@ class CdtParser
         // Exact bit count: each 0-bit = 2×zeroPulse T-states, each 1-bit = 2×onePulse T-states
         $totalT = $pilotPulse * $pilotCount + $sync1 + $sync2
                 + $this->countBitDuration($data, $usedBits, $zeroPulse, $onePulse);
-        $durationMs = (int)($totalT * 1000 / $clock);
+        $durationMs = (int)ceil($totalT * 1000 / $clock);
 
         return array_merge($b, [
             'pilotPulse' => $pilotPulse,
@@ -255,7 +255,7 @@ class CdtParser
         $raw        = fread($h, 4);
         $pulseLen   = $this->u16($raw, 0);
         $numPulses  = $this->u16($raw, 2);
-        $durationMs = (int)($pulseLen * $numPulses * 1000 / $clock);
+        $durationMs = (int)ceil($pulseLen * $numPulses * 1000 / $clock);
 
         return array_merge($b, [
             'pulseLen'   => $pulseLen,
@@ -277,7 +277,7 @@ class CdtParser
             $pulses[] = $p;
             $totalT  += $p;
         }
-        $durationMs = (int)($totalT * 1000 / $clock);
+        $durationMs = (int)ceil($totalT * 1000 / $clock);
 
         return array_merge($b, [
             'pulses'     => $pulses,
@@ -299,7 +299,7 @@ class CdtParser
 
         $totalBits  = $dataLen * 8 - (8 - $usedBits);
         $totalT     = $totalBits * ($zeroPulse + $onePulse);
-        $durationMs = (int)($totalT * 1000 / $clock);
+        $durationMs = (int)ceil($totalT * 1000 / $clock);
 
         return array_merge($b, [
             'zeroPulse'  => $zeroPulse,
@@ -326,7 +326,7 @@ class CdtParser
         $data       = ($dataLen > 0) ? fread($h, $dataLen) : '';
 
         $samples    = $dataLen * 8 - (8 - $usedBits);
-        $durationMs = ($tPerSample > 0) ? (int)($samples * $tPerSample * 1000 / $clock) : 0;
+        $durationMs = ($tPerSample > 0) ? (int)ceil($samples * $tPerSample * 1000 / $clock) : 0;
 
         return array_merge($b, [
             'tPerSample' => $tPerSample,
