@@ -38,11 +38,11 @@
 
 <div class="container">
 
-<?php if (!$diskData): ?>
+<?php if (!$diskData && !$tapeData): ?>
 
     <?php include __DIR__ . '/upload.php'; ?>
 
-<?php else:
+<?php elseif ($diskData):
     $d = $diskData;
 ?>
 
@@ -66,6 +66,27 @@
         <?php include __DIR__ . '/tabs/tab_tracks.php'; ?>
         <?php include __DIR__ . '/tabs/tab_infos.php'; ?>
         <?php include __DIR__ . '/tabs/tab_data.php'; ?>
+
+    </div><!-- /tabs-wrapper -->
+
+<?php elseif ($tapeData):
+    $d = $tapeData;
+?>
+
+    <?php include __DIR__ . '/tape_banner.php'; ?>
+
+    <div class="tabs-wrapper">
+        <div class="tabs-nav">
+            <button class="tab-btn active" onclick="showTab('blocks', this)">📋 Blocks</button>
+            <button class="tab-btn" onclick="showTab('catalogue', this)">📁 Catalogue</button>
+            <button class="tab-btn" onclick="showTab('data', this)">📊 Data</button>
+            <button class="tab-btn" onclick="showTab('infos', this)">ℹ️ Infos</button>
+        </div>
+
+        <?php include __DIR__ . '/tape/tab_blocks.php'; ?>
+        <?php include __DIR__ . '/tape/tab_catalogue.php'; ?>
+        <?php include __DIR__ . '/tape/tab_data.php'; ?>
+        <?php include __DIR__ . '/tape/tab_infos.php'; ?>
 
     </div><!-- /tabs-wrapper -->
 

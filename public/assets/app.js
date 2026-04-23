@@ -8,18 +8,10 @@ function showTab(name, btn) {
 
 // ===== DISK VISUAL — clic secteur → onglet Data =====
 function diskSectorClick(index) {
-    // Activer l'onglet Data
     const dataBtn = document.querySelector('.tab-btn[onclick*="data"]');
     showTab('data', dataBtn);
-
-    // Sélectionner le bon secteur
     const sel = document.getElementById('sdata-select');
-    if (sel) {
-        sel.selectedIndex = index;
-        sdataShow(index);
-    }
-
-    // Scroll vers le haut
+    if (sel) { sel.selectedIndex = index; sdataShow(index); }
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -38,34 +30,64 @@ function sdataNav(dir) {
     sdataShow(next);
 }
 
-// ===== DRAG & DROP UPLOAD =====
-document.addEventListener('DOMContentLoaded', function () {
-    const dz = document.getElementById('drop-zone');
-    const fi = document.getElementById('dsk_file');
-    const fn = document.getElementById('dz-file-name');
+// ===== JUMP TO BLOCK (tape — depuis catalogue / checkdata) =====
+function jumpToBlock(blockIndex) {
+    const dataBtn = document.querySelector('.tab-btn[onclick*="data"]');
+    if (!dataBtn) return;
+    showTab('data', dataBtn);
 
+    const sel = document.getElementById('sdata-select');
+    if (!sel) return;
+    const padded = String(blockIndex).padStart(4, '0');
+    for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].text.includes('[' + padded + ']')) {
+            sel.selectedIndex = i;
+            sdataShow(i);
+            break;
+        }
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== HIGHLIGHT ROW =====
+function highlightBlock(index) {
+    document.querySelectorAll('.block-row-highlight').forEach(r => r.classList.remove('block-row-highlight'));
+    const row = document.getElementById('block-row-' + index);
+    if (row) { row.classList.add('block-row-highlight'); row.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+}
+
+// ===== DRAG & DROP — helper générique =====
+function setupDropZone(dzId, fiId, fnId, allowedExts, icon) {
+    const dz = document.getElementById(dzId);
+    const fi = document.getElementById(fiId);
+    const fn = document.getElementById(fnId);
     if (!dz || !fi) return;
 
     fi.addEventListener('change', () => {
-        fn.textContent = fi.files[0] ? '📄 ' + fi.files[0].name : '';
+        fn.textContent = fi.files[0] ? icon + ' ' + fi.files[0].name : '';
     });
 
-    dz.addEventListener('dragover', e => {
-        e.preventDefault();
-        dz.classList.add('drag-over');
-    });
-
-    dz.addEventListener('dragleave', () => {
-        dz.classList.remove('drag-over');
-    });
-
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
     dz.addEventListener('drop', e => {
         e.preventDefault();
         dz.classList.remove('drag-over');
         const dt = e.dataTransfer;
-        if (dt.files.length) {
+        if (!dt.files.length) return;
+        const name = dt.files[0].name.toLowerCase();
+        const ok = allowedExts.some(ext => name.endsWith('.' + ext));
+        if (ok) {
             fi.files = dt.files;
-            fn.textContent = '📄 ' + dt.files[0].name;
+            fn.textContent = icon + ' ' + dt.files[0].name;
+        } else {
+            fn.textContent = '⚠️ Format non accepté';
         }
     });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Drop zone DSK
+    setupDropZone('drop-zone-dsk', 'dsk_file', 'dz-file-name-dsk', ['dsk'], '💽');
+    // Drop zone CDT/TZX
+    setupDropZone('drop-zone-cdt', 'cdt_file', 'dz-file-name-cdt', ['cdt', 'tzx'], '📼');
 });

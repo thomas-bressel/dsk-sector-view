@@ -25,11 +25,17 @@ return [
     'btn_download_repack' => '⬇ Repack herunterladen',
     'btn_new_file'      => '⬆ Neue Datei',
 
-    // ── Upload ────────────────────────────────────────────────────────────────
+    // ── Upload DSK ────────────────────────────────────────────────────────────
     'upload_title'      => 'Eine Amstrad-Diskette analysieren',
     'upload_desc'       => 'Eine <strong>.dsk</strong>-Datei im Extended CPC DSK-Format ablegen.<br>Maximale Größe: 5 MB.',
     'upload_dropzone'   => 'Datei hier ablegen oder <span>zum Durchsuchen klicken</span>',
-    'upload_btn'        => '🔍 Datei analysieren',
+    'upload_btn'        => '🔍 Diskette analysieren',
+
+    // ── Upload Tape ───────────────────────────────────────────────────────────
+    'upload_tape_title'    => 'Eine Kassette analysieren',
+    'upload_tape_desc'     => 'Eine <strong>.cdt</strong>-Datei (Amstrad CPC) oder <strong>.tzx</strong>-Datei (ZX Spectrum) ablegen.<br>Maximale Größe: 10 MB.',
+    'upload_tape_dropzone' => 'Datei hier ablegen oder <span>zum Durchsuchen klicken</span>',
+    'upload_tape_btn'      => '📼 Kassette analysieren',
 
     // ── Sektor-Flags (Tooltips / Rohausgabe) ──────────────────────────────────
     'flag_used'         => 'BELEGT',

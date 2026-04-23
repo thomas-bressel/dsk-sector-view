@@ -25,11 +25,17 @@ return [
     'btn_download_repack' => '⬇ Download repack',
     'btn_new_file'      => '⬆ New file',
 
-    // ── Upload ────────────────────────────────────────────────────────────────
+    // ── Upload DSK ────────────────────────────────────────────────────────────
     'upload_title'      => 'Analyse an Amstrad floppy disk',
     'upload_desc'       => 'Drop a <strong>.dsk</strong> file in Extended CPC DSK format.<br>Maximum size: 5 MB.',
     'upload_dropzone'   => 'Drag your file here or <span>click to browse</span>',
-    'upload_btn'        => '🔍 Analyse file',
+    'upload_btn'        => '🔍 Analyse disk',
+
+    // ── Upload Tape ───────────────────────────────────────────────────────────
+    'upload_tape_title'    => 'Analyse a tape',
+    'upload_tape_desc'     => 'Drop a <strong>.cdt</strong> (Amstrad CPC) or <strong>.tzx</strong> (ZX Spectrum) file.<br>Maximum size: 10 MB.',
+    'upload_tape_dropzone' => 'Drag your file here or <span>click to browse</span>',
+    'upload_tape_btn'      => '📼 Analyse tape',
 
     // ── Sector flags (tooltips / raw display) ─────────────────────────────────
     'flag_used'         => 'USED',

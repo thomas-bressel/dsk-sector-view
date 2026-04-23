@@ -14,9 +14,12 @@ require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/src/Service/CsrfService.php';
 require_once __DIR__ . '/src/Service/FileCleanupService.php';
 require_once __DIR__ . '/src/Service/UploadService.php';
+require_once __DIR__ . '/src/Service/CdtUploadService.php';
 require_once __DIR__ . '/src/Domain/DskParser.php';
 require_once __DIR__ . '/src/Domain/CpmDirectoryParser.php';
 require_once __DIR__ . '/src/Domain/DiskStats.php';
+require_once __DIR__ . '/src/Domain/CdtParser.php';
+require_once __DIR__ . '/src/Domain/CdtStats.php';
 require_once __DIR__ . '/src/Helper/FormatHelper.php';
 require_once __DIR__ . '/src/Service/ProtectionDetector.php';
 require_once __DIR__ . '/src/Domain/DskWriter.php';
@@ -49,20 +52,22 @@ if (isset($_GET['download']) && $_GET['download'] === 'repack'
 // ── Gestion de l'upload ───────────────────────────────────────────────────────
 $uploadError  = '';
 $dskFile      = '';
+$cdtFile      = '';
 $originalName = '';
 $repackPath   = '';
+$mode         = '';   // 'dsk' | 'tape' | ''
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_POST['csrf_token']) || !$csrf->verify($_POST['csrf_token'])) {
         $uploadError = 'Token de sécurité invalide.';
-    } else {
-        $result = (new UploadService())->handle($_FILES['dsk_file'] ?? []);
-
+    } elseif (!empty($_FILES['dsk_file']['name'])) {
+        // ── Upload DSK ───────────────────────────────────────────────────────
+        $result = (new UploadService())->handle($_FILES['dsk_file']);
         if ($result['success']) {
             $dskFile      = $result['path'];
             $originalName = $result['originalName'];
+            $mode         = 'dsk';
 
-            // Repack
             $repackPath = dirname($dskFile) . '/repack_' . basename($dskFile);
             try {
                 $repackager->repack($dskFile, $repackPath);
@@ -79,11 +84,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $uploadError = $result['error'];
         }
+    } elseif (!empty($_FILES['cdt_file']['name'])) {
+        // ── Upload CDT/TZX ───────────────────────────────────────────────────
+        $result = (new CdtUploadService())->handle($_FILES['cdt_file']);
+        if ($result['success']) {
+            $cdtFile      = $result['path'];
+            $originalName = $result['originalName'];
+            $mode         = 'tape';
+            $csrf->renew();
+            $csrfToken = $csrf->getToken();
+        } else {
+            $uploadError = $result['error'];
+        }
     }
 }
 
-// ── Parsing DSK ───────────────────────────────────────────────────────────────
+// ── Parsing ───────────────────────────────────────────────────────────────────
 $diskData = null;
+$tapeData = null;
 
 if ($dskFile && file_exists($dskFile)) {
     try {
@@ -96,6 +114,19 @@ if ($dskFile && file_exists($dskFile)) {
     } catch (\RuntimeException $e) {
         $uploadError = 'Erreur de lecture : ' . $e->getMessage();
         $diskData    = null;
+        $mode        = '';
+    }
+}
+
+if ($cdtFile && file_exists($cdtFile)) {
+    try {
+        $raw      = (new CdtParser())->parse($cdtFile);
+        $tapeData = (new CdtStats())->compute($raw);
+        $tapeData['originalName'] = $originalName;
+    } catch (\RuntimeException $e) {
+        $uploadError = 'Erreur de lecture : ' . $e->getMessage();
+        $tapeData    = null;
+        $mode        = '';
     }
 }
 

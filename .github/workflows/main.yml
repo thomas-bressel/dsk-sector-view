@@ -32,7 +32,7 @@ jobs:
         push: true
         no-cache: true
         tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/dskscan:prod
+          ${{ secrets.DOCKERHUB_USERNAME }}/dskscan:production
           ${{ secrets.DOCKERHUB_USERNAME }}/dskscan:${{ github.sha }}
           ${{ secrets.DOCKERHUB_USERNAME }}/dskscan:${{ github.run_number }}
 

@@ -122,4 +122,48 @@ class FormatHelper
         }
         return '<span class="badge badge-no">' . $labelNo . '</span>';
     }
+
+    public static function msToTime(int $ms): string
+    {
+        $s  = (int)($ms / 1000);
+        $m  = (int)($s / 60);
+        $h  = (int)($m / 60);
+        $s %= 60;
+        $m %= 60;
+        return sprintf('%02d h %02d m %02d s', $h, $m, $s);
+    }
+
+    public static function addr(int $v): string
+    {
+        return '&amp;' . strtoupper(str_pad(dechex($v), 4, '0', STR_PAD_LEFT));
+    }
+
+    public static function hexDump(string $data, int $maxBytes = 0): string
+    {
+        $len = strlen($data);
+        if ($maxBytes > 0 && $len > $maxBytes) {
+            $data = substr($data, 0, $maxBytes);
+            $len  = $maxBytes;
+        }
+
+        $out = '';
+        for ($off = 0; $off < $len; $off += 16) {
+            $out .= sprintf('%06X: ', $off);
+            $hex = '';
+            $asc = '';
+            for ($b = 0; $b < 16; $b++) {
+                if ($off + $b < $len) {
+                    $byte = ord($data[$off + $b]);
+                    $hex .= sprintf('%02X ', $byte);
+                    $asc .= ($byte >= 0x20 && $byte < 0x7F) ? chr($byte) : '.';
+                } else {
+                    $hex .= '   ';
+                    $asc .= ' ';
+                }
+            }
+            $out .= htmlspecialchars($hex) . ' ' . htmlspecialchars($asc) . "\n";
+        }
+
+        return $out;
+    }
 }
